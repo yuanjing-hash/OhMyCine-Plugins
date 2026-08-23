@@ -4,24 +4,24 @@
     "id": "org.ohmycine.official",
     "name": "OhMyCine 官方插件库",
     "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
-    "updatedAt": "2026-08-23T13:01:00Z"
+    "updatedAt": "2026-08-23T17:03:02Z"
   },
   "plugins": [
     {
       "id": "org.ohmycine.bilibili",
       "name": "Bilibili",
       "description": "将 Bilibili 作为 OhMyCine 在线媒体库浏览、播放和下载。",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "channel": "beta",
       "categories": [
         "online-media",
         "video-site"
       ],
-      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.3/org.ohmycine.bilibili-0.3.3.manifest.json",
-      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.3/org.ohmycine.bilibili-0.3.3.omcp",
-      "packageSha256": "aef6ebec78cb490ebcb1412b4e23d54594edcb31841c9978c63977defed99aed",
+      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.4/org.ohmycine.bilibili-0.3.4.manifest.json",
+      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.4/org.ohmycine.bilibili-0.3.4.omcp",
+      "packageSha256": "a5fb258b4e9447865f89e4d90d234028e0ff9fa5c1ee7d88944d9111c8031a73",
       "minServerVersion": "0.1.0",
-      "releaseNotes": "为 Player 的 Server 专区提供插件自带静态媒体库封面，并保持嵌套内容导航与播放能力。"
+      "releaseNotes": "新增真实媒体库封面候选能力，由 Server 安全获取推荐视频海报并动态合成封面；静态封面继续兜底。"
     }
   ]
 }
