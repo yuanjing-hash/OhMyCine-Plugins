@@ -4,24 +4,24 @@
     "id": "org.ohmycine.official",
     "name": "OhMyCine 官方插件库",
     "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
-    "updatedAt": "2026-08-23T04:48:30Z"
+    "updatedAt": "2026-08-23T09:11:44Z"
   },
   "plugins": [
     {
       "id": "org.ohmycine.bilibili",
       "name": "Bilibili",
       "description": "将 Bilibili 作为 OhMyCine 在线媒体库浏览、播放和下载。",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "channel": "beta",
       "categories": [
         "online-media",
         "video-site"
       ],
-      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.2.0/org.ohmycine.bilibili-0.2.0.manifest.json",
-      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.2.0/org.ohmycine.bilibili-0.2.0.omcp",
-      "packageSha256": "e8e92e1238a59799c2a2531d17e3806949ea6080762036d73e7f4f98c12077a7",
+      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.0/org.ohmycine.bilibili-0.3.0.manifest.json",
+      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-bilibili-v0.3.0/org.ohmycine.bilibili-0.3.0.omcp",
+      "packageSha256": "b43cd62bcccf57a5ffecccdc30d790d8c2a9f33e54419e99c72690fd16fe6bc1",
       "minServerVersion": "0.1.0",
-      "releaseNotes": "补齐扫码登录、个人内容、远端动作、DASH 多清晰度、字幕弹幕与真实下载入库。"
+      "releaseNotes": "新增声明式插件设置页与 Host 内嵌扫码登录，接入插件专属元数据，并复用 Server 统一下载、NFO/JPG、115 上传和媒体入库能力。"
     }
   ]
 }
