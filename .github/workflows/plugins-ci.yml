@@ -164,3 +164,22 @@ jobs:
           name: plugin-${{ matrix.plugin.name }}-verification
           path: dist/release-a
           retention-days: 14
+
+  quality-gate:
+    name: Plugins quality gate
+    if: always()
+    needs: [discover, sdk, hub, official-plugin]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job
+        env:
+          DISCOVER_RESULT: ${{ needs.discover.result }}
+          SDK_RESULT: ${{ needs.sdk.result }}
+          HUB_RESULT: ${{ needs.hub.result }}
+          PLUGIN_RESULT: ${{ needs.official-plugin.result }}
+        shell: bash
+        run: |
+          test "$DISCOVER_RESULT" = success
+          test "$SDK_RESULT" = success
+          test "$HUB_RESULT" = success
+          [[ "$PLUGIN_RESULT" == success || "$PLUGIN_RESULT" == skipped ]]
