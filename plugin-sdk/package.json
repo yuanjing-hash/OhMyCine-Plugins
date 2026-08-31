@@ -22,7 +22,7 @@
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "fflate": "^0.8.2",
-    "typescript": "^5.9.2",
+    "typescript": "^7.0.2",
     "wabt": "^1.0.37"
   }
 }
