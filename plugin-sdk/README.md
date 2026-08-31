@@ -45,7 +45,10 @@ Player 不直接读取插件目录，也不会请求插件提供的远端图片�
 ```powershell
 npm run verify
 npm run typecheck
+npm run validate:repository:online
 ```
+
+官方插件发布由仓库根目录 `.github/workflows/plugin-release.yml` 执行。工作流从 `plugin-<name>-v<version>` 标签解析插件和版本，要求标签提交已进入 `main`，从干净 checkout 编译 WASM，并在公开 Release 资产重新下载验证成功后更新 Registry。本地 `npm run pack` 仅用于开发和复现，不能直接上传为官方资产。
 
 `fixtures/online-media.v1.json` 是 Go Host 与 TypeScript SDK 共读的安全契约夹具，固定验证 Work → Segment → Version → Variant、声明式动作、DASH 双轨、字幕/弹幕、UUID 资产引用和短时选择令牌。修改这些字段时必须同时通过 SDK verify 与 Server 共读测试。
 

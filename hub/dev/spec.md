@@ -18,7 +18,7 @@ ohmycine-plugins/
 │       ├── plugin.template.json
 │       ├── README.md
 │       └── src/
-└── .github/workflows/release-plugin.yml
+└── .github/workflows/plugin-release.yml
 ```
 
 这个结构借鉴了 MoviePilot 的集中索引、插件源码目录和 GitHub Release 发布方式，但 OhMyCine 不会直接加载仓库里的 Python/Go 源码。正式安装包必须包含经过校验的 v1 Manifest 和 WASM 入口。

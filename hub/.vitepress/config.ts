@@ -8,7 +8,8 @@ export default defineConfig({
       { text: '首页', link: '/' },
       { text: '插件', link: '/plugins/' },
       { text: '开发', link: '/dev/' },
-      { text: '文档', link: 'https://github.com/yuanjing-hash/OhMyCine' },
+      { text: '源码', link: 'https://github.com/yuanjing-hash/OhMyCine-Plugins' },
+      { text: 'Server', link: 'https://github.com/yuanjing-hash/OhMyCine-Server' },
     ],
     sidebar: {
       '/plugins/': [
@@ -32,10 +33,10 @@ export default defineConfig({
       ],
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/yuanjing-hash/OhMyCine' },
+      { icon: 'github', link: 'https://github.com/yuanjing-hash/OhMyCine-Plugins' },
     ],
     footer: {
-      message: 'GPL-3.0 Licensed',
+      message: 'MIT Licensed',
       copyright: 'OhMyCine',
     },
   },

@@ -1,0 +1,167 @@
+name: Plugins CI
+
+on:
+  push:
+    branches:
+      - main
+      - "migration/**"
+    paths:
+      - "plugins/**"
+      - "plugin-sdk/**"
+      - "hub/**"
+      - "ohmycine-plugin-registry.v1.json"
+      - ".github/workflows/plugins-ci.yml"
+      - ".github/workflows/plugin-release.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "plugins/**"
+      - "plugin-sdk/**"
+      - "hub/**"
+      - "ohmycine-plugin-registry.v1.json"
+      - ".github/workflows/plugins-ci.yml"
+      - ".github/workflows/plugin-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugins-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.plugins.outputs.plugins }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: plugins
+        name: Discover affected official plugins
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          plugins="$(node plugin-sdk/scripts/list-affected-plugins.mjs --base "$BASE_SHA" --head "$HEAD_SHA")"
+          echo "plugins=$plugins" >> "$GITHUB_OUTPUT"
+
+  sdk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin-sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: plugin-sdk/package-lock.json
+
+      - name: Install SDK dependencies
+        run: npm ci
+
+      - name: Type-check SDK
+        run: npm run typecheck
+
+      - name: Verify contracts and schemas
+        run: npm run verify
+
+      - name: Validate repository and published Registry assets
+        run: npm run validate:repository:online
+
+      - name: Verify deterministic fixture packaging
+        shell: bash
+        run: |
+          npm run build:fixture
+          first="$(sha256sum dist/installable-fixture/*.omcp | cut -d' ' -f1)"
+          rm -rf dist
+          npm run build:fixture
+          second="$(sha256sum dist/installable-fixture/*.omcp | cut -d' ' -f1)"
+          test "$first" = "$second"
+
+  hub:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hub
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: hub/package-lock.json
+
+      - name: Install Hub dependencies
+        run: npm ci
+
+      - name: Build Hub
+        run: npm run build
+
+      - name: Upload Hub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hub-site
+          path: hub/.vitepress/dist
+          retention-days: 30
+
+  official-plugin:
+    needs: discover
+    if: needs.discover.outputs.plugins != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.discover.outputs.plugins) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: plugin-sdk/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: plugin-sdk
+        run: npm ci
+
+      - name: Install WASM target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path "plugins/official/${{ matrix.plugin.name }}/Cargo.toml" --all -- --check
+
+      - name: Lint Rust plugin
+        run: cargo clippy --manifest-path "plugins/official/${{ matrix.plugin.name }}/Cargo.toml" --all-targets -- -D warnings
+
+      - name: Test Rust plugin
+        run: cargo test --manifest-path "plugins/official/${{ matrix.plugin.name }}/Cargo.toml" --locked
+
+      - name: Build WASM plugin
+        run: cargo build --manifest-path "plugins/official/${{ matrix.plugin.name }}/Cargo.toml" --target wasm32-unknown-unknown --release --locked
+
+      - name: Package twice and verify deterministic assets
+        shell: bash
+        run: |
+          wasm="plugins/official/${{ matrix.plugin.name }}/target/wasm32-unknown-unknown/release/${{ matrix.plugin.wasmStem }}.wasm"
+          node plugin-sdk/scripts/prepare-release.mjs --tag "plugin-${{ matrix.plugin.name }}-v${{ matrix.plugin.version }}" --wasm "$wasm" --out dist/release-a
+          node plugin-sdk/scripts/prepare-release.mjs --tag "plugin-${{ matrix.plugin.name }}-v${{ matrix.plugin.version }}" --wasm "$wasm" --out dist/release-b
+          cmp "dist/release-a/${{ matrix.plugin.pluginID }}-${{ matrix.plugin.version }}.omcp" "dist/release-b/${{ matrix.plugin.pluginID }}-${{ matrix.plugin.version }}.omcp"
+          cmp "dist/release-a/${{ matrix.plugin.pluginID }}-${{ matrix.plugin.version }}.manifest.json" "dist/release-b/${{ matrix.plugin.pluginID }}-${{ matrix.plugin.version }}.manifest.json"
+          node plugin-sdk/scripts/verify-release-artifacts.mjs --artifacts dist/release-a
+
+      - name: Upload verification assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-${{ matrix.plugin.name }}-verification
+          path: dist/release-a
+          retention-days: 14
+

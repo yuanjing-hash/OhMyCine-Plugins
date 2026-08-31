@@ -91,7 +91,7 @@
   },
   "author": "OhMyCine",
   "license": "MIT",
-  "homepage": "https://ohmycine.example.test/plugins/bilibili",
+  "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins/tree/main/plugins/official/bilibili",
   "source": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
   "packageSha256": "${PACKAGE_SHA256}"
 }

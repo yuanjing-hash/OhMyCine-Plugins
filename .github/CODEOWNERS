@@ -1,0 +1,5 @@
+/.github/workflows/ @yuanjing-hash
+/plugin-sdk/schema/ @yuanjing-hash
+/plugin-sdk/scripts/ @yuanjing-hash
+/ohmycine-plugin-registry.v1.json @yuanjing-hash
+/plugins/official/ @yuanjing-hash

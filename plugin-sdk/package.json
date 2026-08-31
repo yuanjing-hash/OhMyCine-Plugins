@@ -10,8 +10,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "verify": "node ./scripts/verify-contract.mjs",
+    "validate:repository": "node ./scripts/validate-repository.mjs",
+    "validate:repository:online": "node ./scripts/validate-repository.mjs --online",
     "pack": "node ./scripts/pack-plugin.mjs",
-    "build:fixture": "node ./scripts/build-installable-fixture.mjs"
+    "build:fixture": "node ./scripts/build-installable-fixture.mjs",
+    "prepare:release": "node ./scripts/prepare-release.mjs",
+    "verify:release": "node ./scripts/verify-release-artifacts.mjs",
+    "update:registry": "node ./scripts/update-registry.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

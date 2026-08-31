@@ -12,4 +12,4 @@
 
 首个正式插件位于 `official/bilibili/`。使用 `plugin-sdk` 的 `npm run pack` 生成独立 Manifest 与 `.omcp` Release 资产；源码阶段不提交伪造的 `plugin.wasm` 或摘要，本地 `dist/` 也不会进入 Git。
 
-官方多插件 Registry 独立发布在 `https://github.com/yuanjing-hash/OhMyCine-Plugins`。Server 插件页应添加该仓库地址；主仓库的 `develop` 分支只保存源码与 Registry 校验副本，不作为用户安装入口。
+官方多插件 Registry、源码和 GitHub Actions 发布链统一位于 `https://github.com/yuanjing-hash/OhMyCine-Plugins`。Server 插件页应添加该仓库地址。官方 Release 只能由标签触发的云端干净构建生成，本地产物不作为发布来源。
