@@ -18,6 +18,12 @@ export const PLUGIN_CAPABILITIES = [
   'site.history',
   'playback.progress_sync',
   'library.artwork_candidates',
+  'resource.search',
+  'resource.resolve',
+  'resource.health',
+  'resource.auth.login',
+  'resource.auth.captcha',
+  'resource.auth.cookie',
 ] as const
 
 export type PluginCapability = typeof PLUGIN_CAPABILITIES[number]

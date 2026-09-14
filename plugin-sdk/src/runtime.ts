@@ -14,6 +14,12 @@ export const PLUGIN_OPERATION_CODES = {
   'site.auth.poll': 11,
   'media.metadata': 12,
   'library.artwork_candidates': 13,
+  'resource.search': 14,
+  'resource.resolve': 15,
+  'resource.health': 16,
+  'resource.auth.login': 17,
+  'resource.auth.captcha': 18,
+  'resource.auth.cookie': 19,
 } as const
 
 /**
@@ -50,6 +56,10 @@ export type PluginErrorCode
     | 'not-authenticated'
     | 'not-found'
     | 'rate-limited'
+    | 'browser-verification-required'
+    | 'captcha-required'
+    | 'captcha-expired'
+    | 'auth-failed'
     | 'upstream-unavailable'
     | 'response-too-large'
     | 'timeout'
@@ -70,6 +80,12 @@ export interface PluginRequestMap {
   'site.auth.poll': { connectionId: string, loginSession: string }
   'site.interaction': SiteActionRequest
   'library.artwork_candidates': { connectionId: string }
+  'resource.search': ResourceSearchRequest
+  'resource.resolve': ResourceResolveRequest
+  'resource.health': ResourceHealthRequest
+  'resource.auth.login': ResourceLoginRequest
+  'resource.auth.captcha': ResourceCaptchaRequest
+  'resource.auth.cookie': ResourceCookieRequest
 }
 
 export interface PluginResponseMap {
@@ -86,6 +102,60 @@ export interface PluginResponseMap {
   'site.auth.poll': SiteAuthPollResponse
   'site.interaction': SiteActionResponse
   'library.artwork_candidates': readonly LibraryArtworkCandidate[]
+  'resource.search': ResourceSearchResponse
+  'resource.resolve': ResourceResolveResponse
+  'resource.health': ResourceHealthResponse
+  'resource.auth.login': ResourceLoginResponse
+  'resource.auth.captcha': ResourceLoginResponse
+  'resource.auth.cookie': ResourceLoginResponse
+}
+
+export interface ResourceSearchRequest {
+  connectionId: string
+  query: string
+  kind?: string
+  year?: number
+  page?: number
+}
+
+export interface ResourceSearchItem {
+  id: string
+  title: string
+  sizeBytes: number
+  seeders: number
+  updatedAt?: string
+  tags?: readonly string[]
+}
+
+export interface ResourceSearchResponse {
+  items: readonly ResourceSearchItem[]
+  page: number
+  hasNext: boolean
+}
+
+export interface ResourceResolveRequest { connectionId: string, resourceId: string }
+export interface ResourceResolveResponse { magnet: string }
+export interface ResourceHealthRequest { connectionId: string }
+export interface ResourceHealthResponse { status: 'healthy' | 'auth_required' | 'unavailable' | 'rate_limited', accountName?: string }
+
+export interface ResourceLoginRequest { connectionId: string, username: string, password: string }
+export interface ResourceCookieRequest { connectionId: string, cookie: string }
+
+export interface ResourceCaptchaPoint { x: number, y: number }
+export interface ResourceCaptchaChallenge {
+  challengeId: string
+  imageAssetRef: string
+  width: number
+  height: number
+  prompt: string
+  maxPoints: number
+}
+export interface ResourceCaptchaRequest { connectionId: string, challengeId: string, points: readonly ResourceCaptchaPoint[] }
+export interface ResourceLoginResponse {
+  state: 'authenticated' | 'captcha_required' | 'failed'
+  accountName?: string
+  challenge?: ResourceCaptchaChallenge
+  errorCode?: string
 }
 
 export interface SiteAuthStartResponse {
@@ -223,7 +293,7 @@ export interface HostAssetRegistration {
   headers?: Readonly<Record<string, string>>
   ttlSeconds?: number
   bodyBase64?: string
-  contentType?: 'application/json' | 'text/vtt; charset=utf-8'
+  contentType?: 'application/json' | 'text/vtt; charset=utf-8' | 'image/png' | 'image/jpeg' | 'image/webp'
 }
 
 export interface OhMyCinePlugin {

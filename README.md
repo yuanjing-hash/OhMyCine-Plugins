@@ -21,6 +21,7 @@ ohmycine-plugin-registry.v1.json  可安装版本 Registry
 当前官方插件：
 
 - `org.ohmycine.bilibili`：Bilibili 在线媒体库 Beta。
+- `org.ohmycine.guolia`：挂了.com 登录型 BT 资源站 Beta，支持固定镜像、种子搜索和磁力解析。
 
 Player 源码位于 [OhMyCine](https://github.com/yuanjing-hash/OhMyCine)，Server 源码位于 [OhMyCine-Server](https://github.com/yuanjing-hash/OhMyCine-Server)。插件只在 Server 的 WASM 沙箱中运行，Player 不安装或执行插件代码。
 

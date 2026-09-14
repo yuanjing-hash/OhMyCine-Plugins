@@ -10,6 +10,7 @@ const registrySchema = JSON.parse(await readFile(new URL('../schema/registry-v1.
 const registryFixture = JSON.parse(await readFile(new URL('../fixtures/repository/ohmycine-plugin-registry.v1.json', import.meta.url), 'utf8'))
 const officialRegistry = JSON.parse(await readFile(new URL('../../ohmycine-plugin-registry.v1.json', import.meta.url), 'utf8'))
 const onlineMediaFixture = JSON.parse(await readFile(new URL('../fixtures/online-media.v1.json', import.meta.url), 'utf8'))
+const runtimeContract = await readFile(new URL('../src/runtime.ts', import.meta.url), 'utf8')
 const ajv = new Ajv2020({ allErrors: true, strict: true })
 addFormats(ajv)
 const validate = ajv.compile(schema)
@@ -45,6 +46,22 @@ if (onlineMediaFixture.schemaVersion !== 1
   || assetRefs.length !== 4
   || assetRefs.some(reference => !uuidPattern.test(reference))) {
   throw new Error('online media cross-language fixture is invalid')
+}
+
+for (const literal of [
+  "'resource.search': 14",
+  "'resource.resolve': 15",
+  "'resource.health': 16",
+  "'resource.auth.login': 17",
+  "'resource.auth.captcha': 18",
+  "'resource.auth.cookie': 19",
+  "'browser-verification-required'",
+  "'captcha-required'",
+  "'captcha-expired'",
+  "'auth-failed'",
+]) {
+  if (!runtimeContract.includes(literal))
+    throw new Error(`resource-site runtime contract is missing ${literal}`)
 }
 
 for (const [name, mutate] of [

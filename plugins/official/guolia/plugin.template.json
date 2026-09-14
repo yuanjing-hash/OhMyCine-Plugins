@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "org.ohmycine.guolia",
+  "name": "挂了.com BT 资源站",
+  "description": "登录后搜索挂了.com 种子资源并解析磁力链接。",
+  "version": "0.1.0",
+  "apiVersion": "1",
+  "minServerVersion": "0.1.0",
+  "runtime": "wasm",
+  "entry": "plugin.wasm",
+  "capabilities": ["resource.search", "resource.resolve", "resource.health", "resource.auth.login", "resource.auth.captcha", "resource.auth.cookie"],
+  "permissions": [
+    { "kind": "network.http", "domains": ["www.xn--ykq321c.com", "www.xn--wcv59z.com", "www.xn--kivn76b41nnhi.com", "www.xn--10vr61a3xc5x3b.com", "www.xn--dpqv20e8ug6r8a.com", "www.xn--vcsx1ip8b8w4i.com", "www.xn--74qz10cqsltibh40akss.com", "www.hgeme.com"] },
+    { "kind": "credential.use", "scopes": ["guolia.session"] }
+  ],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["entryOrigin"],
+    "properties": {
+      "entryOrigin": { "type": "string", "enum": ["https://www.xn--wcv59z.com/", "https://www.xn--kivn76b41nnhi.com/", "https://www.xn--10vr61a3xc5x3b.com/", "https://www.xn--dpqv20e8ug6r8a.com/", "https://www.xn--vcsx1ip8b8w4i.com/", "https://www.xn--74qz10cqsltibh40akss.com/", "https://www.hgeme.com/"] }
+    }
+  },
+  "settingsPage": {
+    "version": 1,
+    "tabs": [{ "id": "login", "title": "登录", "sections": [{ "id": "account", "title": "资源站账号", "fields": [{ "type": "credential-status", "label": "登录状态", "description": "支持账号密码登录和直接粘贴 Cookie。" }]}]}]
+  },
+  "author": "OhMyCine",
+  "license": "MIT",
+  "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins/tree/main/plugins/official/guolia",
+  "source": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
+  "packageSha256": "${PACKAGE_SHA256}"
+}
