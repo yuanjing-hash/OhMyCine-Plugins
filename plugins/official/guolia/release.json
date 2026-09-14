@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "channel": "beta",
+  "categories": [
+    "bt-resource",
+    "download-site"
+  ],
+  "releaseNotes": "首版支持固定镜像登录、Cookie 粘贴、验证码手动点击、种子搜索和磁力解析。"
+}
