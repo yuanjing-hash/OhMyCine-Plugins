@@ -3,7 +3,7 @@
   "id": "org.ohmycine.guolia",
   "name": "挂了.com BT 资源站",
   "description": "登录后搜索挂了.com 种子资源并解析磁力链接。",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "apiVersion": "1",
   "minServerVersion": "0.1.0",
   "runtime": "wasm",
