@@ -4,7 +4,7 @@
     "id": "org.ohmycine.official",
     "name": "OhMyCine 官方插件库",
     "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
-    "updatedAt": "2026-08-24T03:16:20Z"
+    "updatedAt": "2026-09-14T02:59:05Z"
   },
   "plugins": [
     {
@@ -22,6 +22,22 @@
       "packageSha256": "59b1809ad8a65c80cd73d383850cdc537366e64f5dae7b5585283b1e0e9b5e09",
       "minServerVersion": "0.1.0",
       "releaseNotes": "媒体库最外层保留固定入口图；推荐、热门、番剧、电影、收藏等导航分类按各自栏目提供真实海报候选，由 Server 合成风格 3 分类封面。"
+    },
+    {
+      "id": "org.ohmycine.guolia",
+      "name": "挂了.com BT 资源站",
+      "description": "登录后搜索挂了.com 种子资源并解析磁力链接。",
+      "version": "0.1.2",
+      "channel": "beta",
+      "categories": [
+        "bt-resource",
+        "download-site"
+      ],
+      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.2/org.ohmycine.guolia-0.1.2.manifest.json",
+      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.2/org.ohmycine.guolia-0.1.2.omcp",
+      "packageSha256": "811b49bfa74ecba7f28515d8659018123692481fb6244003c6e52ff0b5acaee9",
+      "minServerVersion": "0.1.0",
+      "releaseNotes": "首版支持固定镜像登录、Cookie 粘贴、验证码手动点击、种子搜索和磁力解析。"
     }
   ]
 }
