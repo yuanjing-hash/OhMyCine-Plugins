@@ -223,6 +223,9 @@ fn resource_search(request: ResourceSearchRequest) -> Result<Value, PluginError>
         urlencoding::encode(request.query.trim())
     );
     let response = http_get(&request.connection_id, &api_url, true)?;
+    if response.status == 429 {
+        return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
+    }
     if browser_verification_response(&response.body) {
         return Err(PluginError::new(
             "browser-verification-required",
@@ -231,9 +234,6 @@ fn resource_search(request: ResourceSearchRequest) -> Result<Value, PluginError>
     }
     if auth_required_response(response.status, &response.body) {
         return Err(PluginError::new("not-authenticated", "资源站登录已失效"));
-    }
-    if response.status == 429 {
-        return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
     }
     if (200..300).contains(&response.status) {
         if let Some(mut result) = parse_json_search(&response.body, page) {
@@ -255,6 +255,9 @@ fn resource_search(request: ResourceSearchRequest) -> Result<Value, PluginError>
         urlencoding::encode(request.query.trim())
     );
     let response = http_get(&request.connection_id, &html_url, true)?;
+    if response.status == 429 {
+        return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
+    }
     if browser_verification_response(&response.body) {
         return Err(PluginError::new(
             "browser-verification-required",
@@ -263,9 +266,6 @@ fn resource_search(request: ResourceSearchRequest) -> Result<Value, PluginError>
     }
     if auth_required_response(response.status, &response.body) {
         return Err(PluginError::new("not-authenticated", "资源站登录已失效"));
-    }
-    if response.status == 429 {
-        return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
     }
     if !(200..300).contains(&response.status) {
         return Err(PluginError::new(
@@ -576,11 +576,12 @@ fn resource_resolve(request: ResourceResolveRequest) -> Result<Value, PluginErro
         ),
         true,
     )?;
-    if auth_required_response(response.status, &response.body) {
-        return Err(PluginError::new("not-authenticated", "资源站登录已失效"));
-    }
     if response.status == 429 {
         return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
+    }
+    reject_browser_verification(&response.body)?;
+    if auth_required_response(response.status, &response.body) {
+        return Err(PluginError::new("not-authenticated", "资源站登录已失效"));
     }
     if !(200..300).contains(&response.status) {
         return Err(PluginError::new(
@@ -601,12 +602,13 @@ fn resource_health(request: ResourceHealthRequest) -> Result<Value, PluginError>
         &format!("{origin}/res/search?q=test&type=4&ziyuan=&mode=1&page=1"),
         true,
     )?;
-    if response.status == 429 || browser_verification_response(&response.body) {
+    if response.status == 429 {
         return Ok(json!(ResourceHealthResponse {
             status: "rate_limited".to_owned(),
             account_name: None,
         }));
     }
+    reject_browser_verification(&response.body)?;
     if auth_required_response(response.status, &response.body) {
         return Ok(json!(ResourceHealthResponse {
             status: "auth_required".to_owned(),
@@ -631,12 +633,13 @@ fn resource_health(request: ResourceHealthRequest) -> Result<Value, PluginError>
         &format!("{origin}/search?q=test&type=4&mode=1&page=1"),
         true,
     )?;
-    if response.status == 429 || browser_verification_response(&response.body) {
+    if response.status == 429 {
         return Ok(json!(ResourceHealthResponse {
             status: "rate_limited".to_owned(),
             account_name: None,
         }));
     }
+    reject_browser_verification(&response.body)?;
     if auth_required_response(response.status, &response.body) {
         return Ok(json!(ResourceHealthResponse {
             status: "auth_required".to_owned(),
@@ -673,9 +676,10 @@ fn resource_login(request: ResourceLoginRequest) -> Result<Value, PluginError> {
         &body,
         false,
     )?;
-    if response.status == 429 || browser_verification_response(&response.body) {
+    if response.status == 429 {
         return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
     }
+    reject_browser_verification(&response.body)?;
     if let Some(message) = json_login_success(&response.body) {
         if message {
             return commit_capture(
@@ -762,9 +766,10 @@ fn resource_captcha(request: ResourceCaptchaRequest) -> Result<Value, PluginErro
         &body,
         pending_login.has_session_cookie,
     )?;
-    if response.status == 429 || browser_verification_response(&response.body) {
+    if response.status == 429 {
         return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
     }
+    reject_browser_verification(&response.body)?;
     if json_login_success(&response.body).unwrap_or(false) {
         if let Some(reference) = response.capture_ref.as_deref() {
             commit_capture_session(&request.connection_id, reference)?;
@@ -811,9 +816,10 @@ fn fetch_captcha(
         &format!("{origin}/res/captcha/2"),
         had_session_cookie,
     )?;
-    if response.status == 429 || browser_verification_response(&response.body) {
+    if response.status == 429 {
         return Err(PluginError::new("rate-limited", "资源站请求受到限流"));
     }
+    reject_browser_verification(&response.body)?;
     if !(200..300).contains(&response.status) {
         return Err(PluginError::new("captcha-required", "验证码图片获取失败"));
     }
@@ -981,10 +987,35 @@ fn browser_verification_response(body: &[u8]) -> bool {
     if let Ok(payload) = serde_json::from_slice::<Value>(body) {
         return browser_verification_required(&payload);
     }
-    let text = String::from_utf8_lossy(body);
+    // Shared scripts/templates can mention verification even on an ordinary
+    // authenticated page. Only rendered document text is evidence of a gate.
+    let document = Html::parse_document(&String::from_utf8_lossy(body));
+    let text: String = document
+        .tree
+        .nodes()
+        .filter(|node| {
+            !node.ancestors().any(|parent| {
+                parent.value().as_element().is_some_and(|element| {
+                    matches!(element.name(), "script" | "style" | "template" | "noscript")
+                })
+            })
+        })
+        .filter_map(|node| node.value().as_text())
+        .map(|text| &**text)
+        .collect();
     text.contains("浏览器安全验证")
         || text.contains("验证完成后自动继续")
         || text.contains("安全验证") && text.contains("浏览器")
+}
+
+fn reject_browser_verification(body: &[u8]) -> Result<(), PluginError> {
+    if browser_verification_response(body) {
+        return Err(PluginError::new(
+            "browser-verification-required",
+            "资源站要求浏览器会话验证；仅重新粘贴 Cookie 可能无法通过，请检查 Server 的浏览器登录支持",
+        ));
+    }
+    Ok(())
 }
 
 fn auth_required_response(status: i32, body: &[u8]) -> bool {
@@ -1365,6 +1396,19 @@ mod tests {
         assert!(!browser_verification_response(
             "<title>搜索</title><p>正常内容</p>".as_bytes()
         ));
+        assert!(!browser_verification_response(
+            "<title>搜索</title><script>const msg='浏览器安全验证';</script><template>验证完成后自动继续</template><p>正常内容</p>".as_bytes()
+        ));
+        assert!(browser_verification_response(
+            "<h1>浏览器<span>安全验证</span></h1>".as_bytes()
+        ));
+        assert_eq!(
+            reject_browser_verification(br#"{"code":419}"#)
+                .err()
+                .map(|error| error.code),
+            Some("browser-verification-required")
+        );
+        assert!(reject_browser_verification(br#"{"inlist":[]}"#).is_ok());
     }
 
     #[test]
