@@ -597,66 +597,118 @@ fn resource_resolve(request: ResourceResolveRequest) -> Result<Value, PluginErro
 fn resource_health(request: ResourceHealthRequest) -> Result<Value, PluginError> {
     validate_connection(&request.connection_id)?;
     let origin = entry_origin(&request.connection_id)?;
-    let response = http_get(
-        &request.connection_id,
-        &format!("{origin}/res/search?q=test&type=4&ziyuan=&mode=1&page=1"),
-        true,
-    )?;
-    if response.status == 429 {
-        return Ok(json!(ResourceHealthResponse {
-            status: "rate_limited".to_owned(),
-            account_name: None,
-        }));
-    }
-    reject_browser_verification(&response.body)?;
-    if auth_required_response(response.status, &response.body) {
-        return Ok(json!(ResourceHealthResponse {
-            status: "auth_required".to_owned(),
-            account_name: None,
-        }));
-    }
-    if (200..300).contains(&response.status) && parse_json_search(&response.body, 1).is_some() {
-        return Ok(json!(ResourceHealthResponse {
-            status: "healthy".to_owned(),
-            account_name: None,
-        }));
-    }
-    if !(200..300).contains(&response.status) && response.status != 404 && response.status != 405 {
-        return Ok(json!(ResourceHealthResponse {
-            status: "unavailable".to_owned(),
-            account_name: None,
-        }));
-    }
+    // The site's account bootstrap is independent of its search representation.
+    // A manually authenticated browser must not fail login merely because search
+    // returns a Vue document rather than the legacy inlist/table response.
+    let response = http_get(&request.connection_id, &format!("{origin}/"), true)?;
+    account_health(response.status, &response.body)
+}
 
-    let response = http_get(
-        &request.connection_id,
-        &format!("{origin}/search?q=test&type=4&mode=1&page=1"),
-        true,
-    )?;
-    if response.status == 429 {
+fn account_health(status: i32, body: &[u8]) -> Result<Value, PluginError> {
+    if status == 429 {
         return Ok(json!(ResourceHealthResponse {
             status: "rate_limited".to_owned(),
             account_name: None,
         }));
     }
-    reject_browser_verification(&response.body)?;
-    if auth_required_response(response.status, &response.body) {
+    reject_browser_verification(body)?;
+    if (200..300).contains(&status) {
+        if let Some(account) = account_bootstrap(body) {
+            return Ok(json!(account));
+        }
+    }
+    // An error document may contain the ordinary anonymous site shell. Only a
+    // successful document or an explicit authentication status can prove that
+    // credentials are needed; a server failure must never trigger password replay.
+    if (status == 401 || status == 403 || (200..300).contains(&status))
+        && auth_required_response(status, body)
+    {
         return Ok(json!(ResourceHealthResponse {
             status: "auth_required".to_owned(),
             account_name: None,
         }));
     }
-    let status = if (200..300).contains(&response.status)
-        && parse_html_search(&response.body, 1).is_some()
-    {
-        "healthy"
-    } else {
-        "unavailable"
-    };
     Ok(json!(ResourceHealthResponse {
-        status: status.to_owned(),
+        status: "unavailable".to_owned(),
         account_name: None
     }))
+}
+
+// Observed site globals renders its signed-in navigation from _obj.header.n
+// plus _obj.header.u. Parse only the leading JSON assignment of an inline script,
+// never execute JavaScript or infer identity from homepage/poster/link presence.
+fn account_bootstrap(body: &[u8]) -> Option<ResourceHealthResponse> {
+    let html = Html::parse_document(&String::from_utf8_lossy(body));
+    let selector = Selector::parse("script:not([src])").ok()?;
+    let mut result = None;
+    for script in html.select(&selector) {
+        if !matches!(
+            script.value().attr("type").unwrap_or(""),
+            "" | "text/javascript" | "application/javascript"
+        ) {
+            continue;
+        }
+        if script
+            .ancestors()
+            .filter_map(|node| node.value().as_element())
+            .any(|element| matches!(element.name(), "template" | "noscript"))
+        {
+            continue;
+        }
+        let source = script.text().collect::<String>();
+        let Some(value) = source.trim_start().strip_prefix("_obj.header") else {
+            continue;
+        };
+        let Some(value) = value.trim_start().strip_prefix('=') else {
+            continue;
+        };
+        let value = value.trim_start();
+        let mut stream = serde_json::Deserializer::from_str(value).into_iter::<Value>();
+        let account = stream.next()?.ok()?;
+        if value[stream.byte_offset()..].contains("_obj.header")
+            || !value[stream.byte_offset()..].trim_start().starts_with(';')
+            || result.is_some()
+        {
+            return None;
+        }
+        let marker = account.get("n")?;
+        let user = account.get("u")?;
+        let logged_in = match marker {
+            Value::Bool(v) => *v,
+            Value::Number(v) => v.as_u64().is_some_and(|v| v > 0),
+            Value::String(v) => !v.is_empty(),
+            _ => return None,
+        };
+        let status = if logged_in {
+            // u.u is the site's account handle; u.n is its display name.
+            let handle = user.get("u")?.as_str()?;
+            if handle.trim().is_empty() || handle.chars().count() > 256 {
+                return None;
+            }
+            "healthy"
+        } else {
+            if !user.as_array().is_some_and(|v| v.is_empty()) {
+                return None;
+            }
+            "auth_required"
+        };
+        result = Some(ResourceHealthResponse {
+            status: status.to_owned(),
+            account_name: if logged_in {
+                user.get("n")
+                    .and_then(Value::as_str)
+                    .filter(|v| {
+                        !v.trim().is_empty()
+                            && v.chars().count() <= 128
+                            && !v.chars().any(char::is_control)
+                    })
+                    .map(str::to_owned)
+            } else {
+                None
+            },
+        });
+    }
+    result
 }
 
 fn resource_login(request: ResourceLoginRequest) -> Result<Value, PluginError> {
@@ -1022,6 +1074,9 @@ fn auth_required_response(status: i32, body: &[u8]) -> bool {
     if status == 401 || status == 403 {
         return true;
     }
+    if account_bootstrap(body).is_some_and(|account| account.status == "auth_required") {
+        return true;
+    }
     if let Ok(payload) = serde_json::from_slice::<Value>(body) {
         let code = payload.get("code").and_then(Value::as_i64);
         let message = value_string(&payload, &["msg", "message"]);
@@ -1279,6 +1334,73 @@ mod tests {
         let payload: Value = serde_json::from_slice(br#"{"inlist":[]}"#).unwrap();
         assert!(search_payload_shape(&payload));
         assert!(!auth_required_response(200, br#"{"inlist":[]}"#));
+    }
+
+    #[test]
+    fn account_bootstrap_confirms_manual_login_without_search_results() {
+        let body = br#"<html><body><script> _obj.header={"q":"","t":"","p":"","l":"home","n":1,"u":{"u":"fixture-account","n":"Fixture","t":2}};_obj.footer={t:'0.9'}; _BT.PC.HTML('home');</script></body></html>"#;
+        let account = account_bootstrap(body).unwrap();
+        assert_eq!(account.status, "healthy");
+        assert_eq!(account.account_name.as_deref(), Some("Fixture"));
+        assert!(parse_json_search(body, 1).is_none());
+        assert!(parse_html_search(body, 1).is_none());
+        assert!(!auth_required_response(200, body));
+        assert_eq!(account_health(200, body).ok().unwrap()["status"], "healthy");
+        assert_eq!(
+            account_health(429, body).ok().unwrap()["status"],
+            "rate_limited"
+        );
+        assert_eq!(
+            account_health(401, body).ok().unwrap()["status"],
+            "auth_required"
+        );
+        assert_eq!(
+            account_health(503, body).ok().unwrap()["status"],
+            "unavailable"
+        );
+    }
+
+    #[test]
+    fn observed_anonymous_vue_bootstrap_requires_login() {
+        // Anonymous raw HTML observed September 17. The visible login anchor is
+        // produced by JS and therefore absent from this response body.
+        let body = br#"<html><body><script> _obj.header={"q":"","t":"","p":"","l":"home","n":"","u":[]};_obj.footer={t:'0.9'}; _BT.PC.HTML('nologin');</script></body></html>"#;
+        assert_eq!(account_bootstrap(body).unwrap().status, "auth_required");
+        assert!(auth_required_response(200, body));
+        assert_eq!(
+            account_health(200, body).ok().unwrap()["status"],
+            "auth_required"
+        );
+        for status in [302, 404, 500, 503] {
+            assert_eq!(
+                account_health(status, body).ok().unwrap()["status"],
+                "unavailable"
+            );
+        }
+    }
+
+    #[test]
+    fn account_bootstrap_does_not_guess_from_homepage_or_script_mentions() {
+        for body in [
+            r#"<html><a href="/user/logout">logout</a></html>"#,
+            r#"<script>const example='_obj.header={"n":1,"u":{"u":"sample"}};';</script>"#,
+            r#"<script src="/example.js">_obj.header={"n":1,"u":{"u":"sample"}};</script>"#,
+            r#"<script type="application/json">_obj.header={"n":1,"u":{"u":"sample"}};</script>"#,
+            r#"<script>_obj.header={"n":1,"u":{"u":"sample"}};_obj.header={"n":"","u":[]};</script>"#,
+            r#"<template><script>_obj.header={"n":1,"u":{"u":"sample"}};</script></template>"#,
+            r#"<noscript><script>_obj.header={"n":1,"u":{"u":"sample"}};</script></noscript>"#,
+            r#"<script>_obj.header={"n":1,"u":[]};</script>"#,
+            r#"<script>_obj.header={"n":1,"u":{"u":""}};</script>"#,
+            r#"<script>_obj.header={"n":0,"u":{"u":"sample"}};</script>"#,
+            r#"<script>_obj.header={"n":1,"u":{"u":"sample"}} + something;</script>"#,
+            r#"<script>_obj.header={"n":1,"u":{"u":"sample"}};</script><script>_obj.header={"n":"","u":[]};</script>"#,
+        ] {
+            assert!(account_bootstrap(body.as_bytes()).is_none(), "{body}");
+            assert_ne!(
+                account_health(200, body.as_bytes()).ok().unwrap()["status"],
+                "healthy"
+            );
+        }
     }
 
     #[test]
