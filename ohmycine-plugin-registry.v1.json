@@ -4,7 +4,7 @@
     "id": "org.ohmycine.official",
     "name": "OhMyCine 官方插件库",
     "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
-    "updatedAt": "2026-09-14T09:30:09Z"
+    "updatedAt": "2026-09-17T06:00:06Z"
   },
   "plugins": [
     {
@@ -27,17 +27,17 @@
       "id": "org.ohmycine.guolia",
       "name": "挂了.com BT 资源站",
       "description": "登录后搜索挂了.com 种子资源并解析磁力链接。",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "channel": "beta",
       "categories": [
         "bt-resource",
         "download-site"
       ],
-      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.3/org.ohmycine.guolia-0.1.3.manifest.json",
-      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.3/org.ohmycine.guolia-0.1.3.omcp",
-      "packageSha256": "7e89644be12c7128b30f93cb088311469a8e64b882ef0825d30d89190a86771c",
+      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.4/org.ohmycine.guolia-0.1.4.manifest.json",
+      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-guolia-v0.1.4/org.ohmycine.guolia-0.1.4.omcp",
+      "packageSha256": "349cfbbb8168739a6433a75157ec15a90167e533281c071cd7be0cc7a57c6bb6",
       "minServerVersion": "0.1.0",
-      "releaseNotes": "修复浏览器安全验证与限流混淆，避免普通页面脚本中的验证文字造成误判；补充登录、健康检查与资源解析的错误分类回归测试。本版不包含 CloakBrowser：受管浏览器登录需要配套 Server 更新，单独升级插件无法解除站点的真实浏览器验证。真实站点登录、搜索和磁力解析尚待端到端验收。"
+      "releaseNotes": "登录检测改为读取站点账号状态，不再以搜索接口返回格式判断是否登录；识别当前站点的未登录页面。保留同镜像浏览器会话、安全验证与限流边界。本版需要 Server 的受管浏览器支持，不包含浏览器程序。真实账号登录、搜索和磁力解析仍需端到端验收。"
     }
   ]
 }
