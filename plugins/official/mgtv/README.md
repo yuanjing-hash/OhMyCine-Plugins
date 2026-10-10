@@ -1,21 +1,23 @@
 # 芒果 TV 只读点播插件
 
-`org.ohmycine.mgtv`，Beta 版本 `0.1.1`，要求 Server `0.1.1` 的插件合同。Beta 安装包由标准 Release 工作流构建；公开资产校验通过后登记官方 Registry。
+`org.ohmycine.mgtv`，Beta 版本 `0.1.2`，要求 Server `0.1.1` 的插件合同。Beta 安装包由标准 Release 工作流构建；公开资产校验通过后登记官方 Registry。
 
-本轮配套修复使用 Server `1.1.74` 和 Player `1.1.59`：Server 恢复取消或超时后关闭的插件实例、为联网海报查询设置有界预算；Server 和 Player 本地下载对已知 Clash Fake-IP 使用验证证书的真实 DNS 回退，仍拒绝私网目的地址。普通分类节点没有海报，进入分类后的作品列表使用官方海报。
+本轮配套修复使用 Server `1.1.75` 和 Player `1.1.60`：Server 缓存并定时刷新目录，Player 保存本系统播放记录。插件修复官方调度副本选择与分集分页；Server 和 Player 本地下载对已知 Clash Fake-IP 使用验证证书的真实 DNS 回退，仍拒绝私网目的地址。普通分类节点没有海报，进入分类后的作品列表使用官方海报。
 
 管理员使用芒果 TV 手机客户端扫码登录，Server Host 捕获官方桌面登录 Cookie 并加密保存。获授权用户共用该连接；连接启用后使用系统已有在线媒体库入口，插件不创建物理媒体库、资源站点或 Server 入库任务。不提供上传、收藏、购买、用券、账号观看记录写入、直播或资源搜索操作。
 
 ## 已实现
 
 - 官方国内点播分类、名称和排序由 `rider/config/platformChannels/v1` 获取；每个分类包含全部内容和官方类型、年份、地区、资费等筛选分支，内容按 `rider/list/pcweb/v3` 分页。
-- 作品采用 `clip:<clipId>`，分集采用 `video:<videoId>`，版本采用 `mgtv:<clipId>:<videoId>`。正片、预告、加更和花絮保留各自视频身份；分页去重依赖视频 ID。
+- 作品采用 `clip:<clipId>`，分集采用 `video:<videoId>`，版本采用 `mgtv:<clipId>:<videoId>`。正片、预告、加更和花絮保留各自视频身份；分页从明确的第 1 页开始，按视频 ID 去重，并只追加一次重复花絮。综艺使用官方期次标题和内容类型，目录排序号不再映射为伪集数。详情的 `defaultSegmentId` 只在官方默认视频确实属于返回分集时提供，客户端已有选集或历史续播优先。
 - 官方 `GetMultiPic → GetQrcodeResult → account/setCookie` 扫码流程。临时 ticket 仅用于一次上游请求，不存入插件私有状态、日志或返回 DTO；已捕获 Cookie 仅由 Host 保存。
 - 账号和会员摘要采用已观察到的桌面 `uid/uuid`、`nickname`、`isvip/vipinfo.type` 字段。缺失可验证会员信息时返回未知。会员摘要不作为视频授权证明。
 - 播放通过当前官方 `video/streamList` 验证精确集数、版本、清晰度和完整流。必须有 `user.purview=200`，没有官方试看组件和 DRM，选中流 `needPay=0`、URL 非空且时长与完整视频一致。VIP 布尔值、可见 URL、免费清晰度标记均不能单独放行。
 - `media.offline_download_plan` 操作 20 返回 Host 不透明资产引用。在完整播放授权基础上，还要求同一视频的官方 `video/info` 明确设置 `config.download.downloadDisplay=1`。这是下载当前已授权完整流的条件，不声称提供官方离线许可证或支持 DRM。
 - 官方字幕由当前桌面播放器调用的 `mobile-stream.api.mgtv.com/v2/video/title` 获取；有可用 SRT 资源时注册 Host 引用，供播放和本地下载使用。字幕接口失败不阻断已授权视频。
-- CDN 权限使用明确域名。当前真实免费完整视频观察到 `web-disp{,1,2}.titan.mgtv.com`、`pcvideoks.titan.mgtv.com` 与 `pcvideomigu.titan.mgtv.com`。其他未审核 CDN 清楚拒绝，不依据上游响应自动扩大权限。
+- CDN 权限使用明确域名。当前真实免费完整视频观察到 `web-disp{,1,2}.titan.mgtv.com`、`pcvideoks.titan.mgtv.com`、`pcvideomigu.titan.mgtv.com`、`pcvideotx.titan.mgtv.com` 与 `pcvideoctyun.titan.mgtv.com`。未审核 CDN 返回时继续尝试同一清晰度的其他已声明调度副本；全部失败后清楚拒绝，不依据上游响应自动扩大权限。
+
+播放失败使用可选固定 `pluginError.reason`，Server 返回自己的安全提示。诊断只记录固定阶段、错误码、原因及当前流的登录状态、权益码和身份匹配布尔值；不记录 Cookie、ticket、账号 ID、媒体 URL 或上游完整响应。登录失效的受限流提示重新登录；会员摘要不替代当前视频检查。
 
 媒体实际下载、HLS 控制清单解析、安全网关、Player 本地组装和离线包属于通用核心合同。此插件不获取本地路径或持久化短期媒体 URL。HLS 播放依赖 Server 的控制清单 URI 重写；本地下载由 Player 获取 Server 解析后的短期传输计划。
 
@@ -33,7 +35,7 @@ Windows/Android 的真实播放器和账号联调属于单独验收，Rust fixtu
 
 ## 验证与本地构建
 
-当前 14 项 Rust 测试包含真实详情/分集 HTTP 载荷和完整脱敏二维码响应的回归：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
+Rust 测试覆盖真实详情/分集分页和官方默认选择、完整脱敏二维码响应、调度副本回退及固定诊断原因：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
 
 ```powershell
 cargo fmt --manifest-path plugins/official/mgtv/Cargo.toml --all -- --check

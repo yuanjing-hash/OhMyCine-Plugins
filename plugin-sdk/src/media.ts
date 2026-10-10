@@ -18,6 +18,8 @@ export interface MediaWork {
   publishedAt?: string
   durationSeconds?: number
   segments?: readonly MediaSegment[]
+  /** Provider's default selection; must identify one of the returned segments. */
+  defaultSegmentId?: string
 }
 
 /** A credential-free stable identity plus a short-lived opaque Host asset. */

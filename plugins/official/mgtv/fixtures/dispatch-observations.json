@@ -1,0 +1,7 @@
+[
+  {"dispatcher":"web-disp.titan.mgtv.com","status":"ok","scheme":"https","hostname":"pcvideoks.titan.mgtv.com","port":443,"format":"m3u8"},
+  {"dispatcher":"web-disp1.titan.mgtv.com","status":"ok","scheme":"https","hostname":"pcvideotx.titan.mgtv.com","port":443,"format":"m3u8"},
+  {"dispatcher":"web-disp2.titan.mgtv.com","status":"ok","scheme":"https","hostname":"pcvideomigu.titan.mgtv.com","port":443,"format":"m3u8"},
+  {"dispatcher":"web-disp.titan.mgtv.com","status":"ok","scheme":"https","hostname":"pcvideoctyun.titan.mgtv.com","port":443,"format":"m3u8"},
+  {"dispatcher":"web-disp2.titan.mgtv.com","status":"ok","scheme":"https","hostname":"pcvideoctyun.titan.mgtv.com","port":443,"format":"m3u8"}
+]

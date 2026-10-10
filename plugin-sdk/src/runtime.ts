@@ -67,6 +67,26 @@ export type PluginErrorCode
     | 'invalid-response'
     | 'internal'
 
+/** Optional bounded classification. Host displays its own fixed messages. */
+export type PluginErrorReason
+  = 'entitlement-required'
+    | 'region-restricted'
+    | 'drm-unsupported'
+    | 'quality-unavailable'
+    | 'incomplete-stream'
+    | 'asset-domain-denied'
+    | 'network-access-denied'
+    | 'download-unavailable'
+
+export interface PluginError {
+  code: PluginErrorCode
+  /** Untrusted diagnostic text; never forward it through ordinary APIs. */
+  message: string
+  reason?: PluginErrorReason
+}
+
+export interface PluginErrorEnvelope { pluginError: PluginError }
+
 export interface PluginRequestMap {
   'site.navigation': { connectionId: string, parentNodeKey?: string, depth?: number }
   'site.feed': { connectionId: string, routeKey: string, cursor?: string, refreshSession?: string }

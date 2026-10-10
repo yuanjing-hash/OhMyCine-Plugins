@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ohmycine.dev/plugin-error-v1.schema.json",
+  "title": "OhMyCine Runtime v1 business error",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pluginError"],
+  "properties": {
+    "pluginError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["invalid-request", "permission-denied", "not-authenticated", "not-found", "rate-limited", "browser-verification-required", "captcha-required", "captcha-expired", "auth-failed", "upstream-unavailable", "response-too-large", "timeout", "invalid-response", "internal"]
+        },
+        "message": {"type": "string", "maxLength": 256},
+        "reason": {
+          "type": "string",
+          "enum": ["entitlement-required", "region-restricted", "drm-unsupported", "quality-unavailable", "incomplete-stream", "asset-domain-denied", "network-access-denied", "download-unavailable"]
+        }
+      }
+    }
+  }
+}

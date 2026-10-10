@@ -15,6 +15,7 @@
             "title": "契约视频",
             "kind": "video",
             "identity": { "scheme": "fixture.work", "value": "fixture-work" },
+            "defaultSegmentId": "segment-main",
             "segments": [
               {
                 "id": "segment-main",
