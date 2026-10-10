@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ohmycine.dev/schemas/offline-download-plan-v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "workId", "segmentId", "versionId", "variantId", "suggestedFileName", "format", "assets"],
+  "properties": {
+    "version": { "const": 1 },
+    "workId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "segmentId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "versionId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "variantId": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "suggestedFileName": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[^/\\\\\u0000-\u001f]+$" },
+    "format": { "enum": ["progressive", "hls", "dash"] },
+    "expiresAt": { "type": "integer", "minimum": 1 },
+    "assets": {
+      "type": "array", "minItems": 1, "maxItems": 18,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "kind", "urlRef"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "kind": { "enum": ["video", "audio", "subtitle", "danmaku"] },
+          "urlRef": { "type": "string", "format": "uuid" },
+          "headersRef": { "const": "" },
+          "expectedContentType": { "type": "string", "maxLength": 128 },
+          "expectedBytes": { "type": "integer", "minimum": 0, "maximum": 2199023255552 }
+        }
+      }
+    }
+  }
+}

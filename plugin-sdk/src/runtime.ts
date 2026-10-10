@@ -1,4 +1,4 @@
-import type { DownloadPlan, FeedSection, FlatNavigationItem, HierarchicalNavigationResponse, LibraryArtworkCandidate, MediaWork, PlaybackPlan, ProviderMetadataSnapshot } from './media'
+import type { DownloadPlan, OfflineDownloadPlan, FeedSection, FlatNavigationItem, HierarchicalNavigationResponse, LibraryArtworkCandidate, MediaWork, PlaybackPlan, ProviderMetadataSnapshot } from './media'
 
 export const PLUGIN_OPERATION_CODES = {
   'site.navigation': 1,
@@ -20,6 +20,7 @@ export const PLUGIN_OPERATION_CODES = {
   'resource.auth.login': 17,
   'resource.auth.captcha': 18,
   'resource.auth.cookie': 19,
+  'media.offline_download_plan': 20,
 } as const
 
 /**
@@ -73,6 +74,7 @@ export interface PluginRequestMap {
   'site.detail': { connectionId: string, itemId: string }
   'media.playback': { connectionId: string, itemId: string, segmentId: string, versionId: string, variantId?: string }
   'media.download_plan': { connectionId: string, itemId: string, segmentId: string, versionId: string, variantId?: string }
+  'media.offline_download_plan': { connectionId: string, itemId: string, segmentId: string, versionId: string, variantId: string }
   'media.metadata': { connectionId: string, itemId: string, segmentId: string, versionId: string }
   'site.history': { connectionId: string, cursor?: string, pageSize?: number }
   'playback.progress_sync': PlaybackProgressSyncRequest
@@ -95,6 +97,7 @@ export interface PluginResponseMap {
   'site.detail': MediaWork
   'media.playback': PlaybackPlan
   'media.download_plan': DownloadPlan
+  'media.offline_download_plan': OfflineDownloadPlan
   'media.metadata': ProviderMetadataSnapshot
   'site.history': PluginHistoryPage
   'playback.progress_sync': PlaybackProgressSyncResponse
@@ -168,8 +171,17 @@ export interface SiteAuthStartResponse {
 export interface SiteAuthPollResponse {
   state: 'pending' | 'scanned' | 'confirmed' | 'expired'
   authenticated: boolean
-  account?: { id: string, name: string, avatarUrl?: string }
+  account?: { id: string, name: string, avatarUrl?: string, membership?: AccountMembershipSummary }
   pollAfterSeconds?: number
+  /** Required for confirmed site.auth; copied from successful Host commit. */
+  credentialVersion?: number
+}
+
+/** Display-only summary. Content entitlement must be checked for each plan. */
+export interface AccountMembershipSummary {
+  status: 'active' | 'inactive' | 'unknown'
+  label?: string
+  expiresAt?: string
 }
 
 export interface SiteActionRequest {
@@ -258,7 +270,7 @@ export interface HostApi {
   storageSet(connectionId: string, key: string, value: string): Promise<void>
   now(): Promise<string>
   registerAsset(input: HostAssetRegistration): Promise<{ ref: string, expiresAt: string }>
-  commitCredential(input: HostCredentialCommit): Promise<{ credentialUpdated: boolean }>
+  commitCredential(input: HostCredentialCommit): Promise<{ credentialUpdated: boolean, credentialVersion?: number }>
   configGet(connectionId: string): Promise<Readonly<Record<string, unknown>>>
 }
 

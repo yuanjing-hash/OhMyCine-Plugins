@@ -11,10 +11,26 @@ const registryFixture = JSON.parse(await readFile(new URL('../fixtures/repositor
 const officialRegistry = JSON.parse(await readFile(new URL('../../ohmycine-plugin-registry.v1.json', import.meta.url), 'utf8'))
 const onlineMediaFixture = JSON.parse(await readFile(new URL('../fixtures/online-media.v1.json', import.meta.url), 'utf8'))
 const runtimeContract = await readFile(new URL('../src/runtime.ts', import.meta.url), 'utf8')
+const offlineSchema = JSON.parse(await readFile(new URL('../schema/offline-download-plan-v1.schema.json', import.meta.url), 'utf8'))
+const offlineFixture = JSON.parse(await readFile(new URL('../fixtures/offline-download-plan.v1.json', import.meta.url), 'utf8'))
 const ajv = new Ajv2020({ allErrors: true, strict: true })
 addFormats(ajv)
 const validate = ajv.compile(schema)
 const validateRegistry = ajv.compile(registrySchema)
+const validateOffline = ajv.compile(offlineSchema)
+if (!validateOffline(offlineFixture))
+  throw new Error(`offline fixture rejected: ${ajv.errorsText(validateOffline.errors)}`)
+for (const [name, mutate] of [
+  ['raw URL', value => { value.assets[0].urlRef = 'https://cdn.example/video.m3u8' }],
+  ['credential headers', value => { value.assets[0].headers = { Cookie: 'secret' } }],
+  ['path', value => { value.suggestedFileName = '../video.mp4' }],
+  ['live format', value => { value.format = 'live' }],
+  ['header reference', value => { value.assets[0].headersRef = 'secret' }],
+]) {
+  const invalid = structuredClone(offlineFixture)
+  mutate(invalid)
+  if (validateOffline(invalid)) throw new Error(`invalid offline fixture accepted: ${name}`)
+}
 
 if (!validate(fixture))
   throw new Error(`valid fixture rejected: ${ajv.errorsText(validate.errors)}`)
@@ -55,6 +71,7 @@ for (const literal of [
   "'resource.auth.login': 17",
   "'resource.auth.captcha': 18",
   "'resource.auth.cookie': 19",
+  "'media.offline_download_plan': 20",
   "'browser-verification-required'",
   "'captcha-required'",
   "'captcha-expired'",
