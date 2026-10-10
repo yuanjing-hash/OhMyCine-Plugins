@@ -1,0 +1,9 @@
+{
+  "code": 200,
+  "msg": "操作成功",
+  "seqId": "",
+  "data": {
+    "rcode": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "url": "https://oauth.mgtv.com/2.0/multicode_login?uid=REDACTED&from=REDACTED&mac=REDACTED&deviceid=REDACTED&pic_use=REDACTED&src=REDACTED&abroad=REDACTED"
+  }
+}

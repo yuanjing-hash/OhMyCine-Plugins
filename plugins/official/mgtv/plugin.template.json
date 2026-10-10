@@ -3,7 +3,7 @@
   "id": "org.ohmycine.mgtv",
   "name": "芒果 TV",
   "description": "使用管理员芒果账号浏览官方点播目录、验证具体视频权益并播放；只读媒体库。",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "apiVersion": "1",
   "minServerVersion": "0.1.1",
   "runtime": "wasm",

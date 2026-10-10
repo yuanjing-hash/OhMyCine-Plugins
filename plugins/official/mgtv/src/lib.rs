@@ -70,7 +70,7 @@ pub unsafe extern "C" fn omc_invoke(operation: i32, pointer: i32, length: i32) -
     };
     let response = match result {
         Ok(value) => value,
-        Err(error) => json!({"error":{"code":error.code,"message":error.message}}),
+        Err(error) => json!({"pluginError":{"code":error.code,"message":error.message}}),
     };
     let bytes = serde_json::to_vec(&response).unwrap_or_default();
     let length = bytes.len();
@@ -132,7 +132,11 @@ fn host(operation: i32, request: &Value) -> Result<Value, Error> {
             } else {
                 "internal"
             },
-            "宿主能力调用失败",
+            if operation == 1 && size == -2 {
+                "网络访问被拒绝，请检查插件域名授权及 DNS 是否解析到私网或代理 fake-IP"
+            } else {
+                "宿主能力调用失败"
+            },
         ));
     }
     buffer.truncate(size as usize);

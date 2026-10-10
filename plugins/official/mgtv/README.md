@@ -1,6 +1,8 @@
 # 芒果 TV 只读点播插件
 
-`org.ohmycine.mgtv`，Beta 版本 `0.1.0`，要求 Server `0.1.1` 的插件合同。Beta 安装包由标准 Release 工作流构建；公开资产校验通过后登记官方 Registry。
+`org.ohmycine.mgtv`，Beta 版本 `0.1.1`，要求 Server `0.1.1` 的插件合同。Beta 安装包由标准 Release 工作流构建；公开资产校验通过后登记官方 Registry。
+
+本轮配套修复使用 Server `1.1.74` 和 Player `1.1.59`：Server 恢复取消或超时后关闭的插件实例、为联网海报查询设置有界预算；Server 和 Player 本地下载对已知 Clash Fake-IP 使用验证证书的真实 DNS 回退，仍拒绝私网目的地址。普通分类节点没有海报，进入分类后的作品列表使用官方海报。
 
 管理员使用芒果 TV 手机客户端扫码登录，Server Host 捕获官方桌面登录 Cookie 并加密保存。获授权用户共用该连接；连接启用后使用系统已有在线媒体库入口，插件不创建物理媒体库、资源站点或 Server 入库任务。不提供上传、收藏、购买、用券、账号观看记录写入、直播或资源搜索操作。
 
@@ -31,7 +33,7 @@ Windows/Android 的真实播放器和账号联调属于单独验收，Rust fixtu
 
 ## 验证与本地构建
 
-当前 13 项 Rust 测试包含真实详情/分集 HTTP 载荷的回归：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
+当前 14 项 Rust 测试包含真实详情/分集 HTTP 载荷和完整脱敏二维码响应的回归：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
 
 ```powershell
 cargo fmt --manifest-path plugins/official/mgtv/Cargo.toml --all -- --check
