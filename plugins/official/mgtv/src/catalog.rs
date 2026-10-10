@@ -362,10 +362,14 @@ pub(super) fn detail(request: Detail) -> Result<Value, Error> {
             .map_err(|_| Error::new("invalid-response", "芒果视频详情缺少视频身份"))?,
     )?;
     let mut rows = Vec::new();
+    let mut short_rows = Vec::new();
     let mut seen = HashSet::new();
+    let channel = number(data.pointer("/info/fstlvlId"));
     let mut count = 1;
-    for index in 0..64 {
-        if index >= count {
+    // Page zero means "locate the currently selected video", not first page.
+    // On a long variety series it can start at page two (or later).
+    for index in 1..=64 {
+        if index > count {
             break;
         }
         let page = index.to_string();
@@ -384,29 +388,34 @@ pub(super) fn detail(request: Detail) -> Result<Value, Error> {
             )?,
             false,
         )?;
-        count = number(episodes.get("total_page")).unwrap_or(1).max(1);
-        if count > 64 {
-            return Err(Error::new(
-                "response-too-large",
-                "芒果分集列表超过当前支持上限",
-            ));
+        let page_count = episode_page_count(&episodes, index)?;
+        if index > 1 && count != page_count {
+            return Err(Error::response());
         }
-        for key in ["list", "short"] {
-            if let Some(list) = episodes.get(key).and_then(Value::as_array) {
-                for row in list {
-                    let segment = segment(cid, row, rows.len() + 1)?;
-                    let id = string(&segment, "id")?.to_owned();
-                    if seen.insert(id) {
-                        rows.push(segment);
-                    }
-                }
+        count = page_count;
+        for row in array(&episodes, "list")? {
+            let item = segment(cid, row, rows.len() + 1, channel, false)?;
+            if seen.insert(string(&item, "id")?.to_owned()) {
+                rows.push(item);
             }
         }
-        if rows.len() > 1000 {
+        // The official endpoint repeats the same short list on every page.
+        // Retain it once, after the complete regular list, rather than inserting
+        // shorts between episode pages and changing chronological order.
+        if index == 1 {
+            short_rows = array(&episodes, "short")?.clone();
+        }
+        if rows.len() + short_rows.len() > 1000 {
             return Err(Error::new(
                 "response-too-large",
                 "芒果分集列表超过当前支持上限",
             ));
+        }
+    }
+    for row in &short_rows {
+        let item = segment(cid, row, rows.len() + 1, channel, true)?;
+        if seen.insert(string(&item, "id")?.to_owned()) {
+            rows.push(item);
         }
     }
     // A movie's list can be empty; the authoritative selected video remains
@@ -416,7 +425,53 @@ pub(super) fn detail(request: Detail) -> Result<Value, Error> {
     }
     work_from_info(cid, &data, rows)
 }
-fn segment(cid: &str, row: &Value, index: usize) -> Result<Value, Error> {
+fn episode_page_count(data: &Value, page: u64) -> Result<u64, Error> {
+    let count = number(data.get("total_page"))
+        .ok_or_else(Error::response)?
+        .max(1);
+    if count > 64 {
+        return Err(Error::new(
+            "response-too-large",
+            "芒果分集列表超过当前支持上限",
+        ));
+    }
+    if page == 0
+        || page > count
+        || number(data.get("current_page")) != Some(page)
+        // Official drama lists append bonus rows beyond the requested size.
+        || array(data, "list")?.len() > 1000
+        || array(data, "short")?.len() > 100
+    {
+        return Err(Error::response());
+    }
+    Ok(count)
+}
+fn segment_edition(row: &Value, short: bool) -> &'static str {
+    if short {
+        return "花絮片段";
+    }
+    let summary = row.get("t2").and_then(Value::as_str).unwrap_or_default();
+    if summary.starts_with("超前彩蛋") {
+        "超前彩蛋"
+    } else if summary.to_ascii_lowercase().starts_with("plus版") {
+        "Plus版"
+    } else if summary.starts_with("超前聚会") {
+        "超前聚会"
+    } else if number(row.get("isIntact")) == Some(7) {
+        "彩蛋"
+    } else if number(row.get("isIntact")) == Some(1) {
+        "正片"
+    } else {
+        "其他视频"
+    }
+}
+fn segment(
+    cid: &str,
+    row: &Value,
+    index: usize,
+    channel: Option<u64>,
+    short: bool,
+) -> Result<Value, Error> {
     let vid = numeric_id(string(row, "video_id")?)?;
     if row.get("clip_id").and_then(Value::as_str) != Some(cid) {
         return Err(Error::response());
@@ -427,22 +482,40 @@ fn segment(cid: &str, row: &Value, index: usize) -> Result<Value, Error> {
         .and_then(Value::as_str)
         .filter(|v| !v.is_empty() && v.len() <= 512)
         .ok_or_else(Error::response)?;
-    let mut segment = json!({"id":format!("video:{vid}"),"title":title,"index":index,"versions":[{"id":format!("mgtv:{cid}:{vid}"),"label":"芒果 TV","sourceLabel":"芒果 TV","edition":if number(row.get("isIntact"))==Some(1){"正片"}else{"其他视频"},"delivery":"online","variants":[]}]});
-    if let Some(episode) = row
-        .get("t1")
-        .and_then(Value::as_str)
-        .and_then(|v| v.parse::<u32>().ok())
-        .filter(|v| *v > 0 && *v < 10000)
-    {
-        segment["episodeNumber"] = json!(episode);
+    let edition = segment_edition(row, short);
+    let mut segment = json!({"id":format!("video:{vid}"),"title":title,"index":index,"versions":[{"id":format!("mgtv:{cid}:{vid}"),"label":"芒果 TV","sourceLabel":"芒果 TV","edition":edition,"delivery":"online","variants":[]}]});
+    // t1 is an ordering slot for variety programs: official t1=32 can be
+    // 第8期（上）, while 31 is its bonus. Only regular drama/anime rows carry
+    // actual episode numbers; short/bonus rows never inherit this counter.
+    if matches!(channel, Some(2 | 10)) && edition == "正片" {
+        if let Some(episode) = row
+            .get("t1")
+            .and_then(Value::as_str)
+            .and_then(|v| v.parse::<u32>().ok())
+            .filter(|v| *v > 0 && *v < 10000)
+        {
+            segment["episodeNumber"] = json!(episode);
+        }
     }
     Ok(segment)
 }
 fn work_from_info(cid: &str, data: &Value, segments: Vec<Value>) -> Result<Value, Error> {
     let info = data.get("info").ok_or_else(Error::response)?;
-    Ok(
-        json!({"id":format!("clip:{cid}"),"title":string(info,"title")?,"kind":kind(number(info.get("fstlvlId"))),"identity":{"scheme":"mgtv.clip","value":cid},"overview":info.pointer("/detail/story"),"posterUrl":info.get("clipImage2").and_then(Value::as_str).and_then(safe_url),"backdropUrl":info.get("clipImage").and_then(Value::as_str).and_then(safe_url),"publishedAt":info.pointer("/detail/releaseTime"),"segments":segments}),
-    )
+    let default = info
+        .get("videoId")
+        .and_then(Value::as_str)
+        .and_then(|id| numeric_id(id).ok())
+        .map(|id| format!("video:{id}"))
+        .filter(|id| {
+            segments
+                .iter()
+                .any(|segment| segment.get("id").and_then(Value::as_str) == Some(id))
+        });
+    let mut work = json!({"id":format!("clip:{cid}"),"title":string(info,"title")?,"kind":kind(number(info.get("fstlvlId"))),"identity":{"scheme":"mgtv.clip","value":cid},"overview":info.pointer("/detail/story"),"posterUrl":info.get("clipImage2").and_then(Value::as_str).and_then(safe_url),"backdropUrl":info.get("clipImage").and_then(Value::as_str).and_then(safe_url),"publishedAt":info.pointer("/detail/releaseTime"),"segments":segments});
+    if let Some(id) = default {
+        work["defaultSegmentId"] = json!(id);
+    }
+    Ok(work)
 }
 pub(super) fn artwork(request: Artwork) -> Result<Value, Error> {
     let route = artwork_route(request.scope_key.as_deref())?;
@@ -523,12 +596,106 @@ mod tests {
         assert_eq!(row["work"]["id"], "clip:778406");
         let episodes = fixture("episodes.json");
         let rows = episodes["data"]["list"].as_array().unwrap();
-        let a = segment("778406", &rows[0], 1).unwrap();
+        let a = segment("778406", &rows[0], 1, Some(2), false).unwrap();
         assert_eq!(a["id"], "video:24589329");
         assert_eq!(a["versions"][0]["id"], "mgtv:778406:24589329");
         let mut bad = rows[0].clone();
         bad["clip_id"] = json!("999");
-        assert!(segment("778406", &bad, 1).is_err());
+        assert!(segment("778406", &bad, 1, Some(2), false).is_err());
+    }
+    #[test]
+    fn official_variety_pages_preserve_order_titles_and_editions() {
+        let first = fixture("episodes-variety-page1.json")["data"].clone();
+        let second = fixture("episodes-variety-page2.json")["data"].clone();
+        assert_eq!(episode_page_count(&first, 1).unwrap(), 2);
+        assert_eq!(episode_page_count(&second, 2).unwrap(), 2);
+        // Page-zero auto-location can return page two, which must not be
+        // accepted as a requested first page.
+        assert!(episode_page_count(&second, 1).is_err());
+        let list = first["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(second["list"].as_array().unwrap());
+        let segments = list
+            .enumerate()
+            .map(|(index, row)| segment("887305", row, index + 1, Some(1), false).unwrap())
+            .collect::<Vec<_>>();
+        assert_eq!(segments.len(), 50);
+        assert_eq!(segments[0]["id"], "video:24485448");
+        assert_eq!(segments[30]["id"], "video:24618061");
+        assert!(segments.iter().all(|s| s.get("episodeNumber").is_none()));
+        assert_eq!(segments[30]["versions"][0]["edition"], "超前彩蛋");
+        assert_eq!(segments[31]["versions"][0]["edition"], "正片");
+        assert!(segments[31]["title"].as_str().unwrap().contains("第8期"));
+        assert!(segments[31]["title"].as_str().unwrap().ends_with("（上）"));
+        assert!(segments[32]["title"].as_str().unwrap().ends_with("（下）"));
+        assert_eq!(segments[33]["versions"][0]["edition"], "Plus版");
+        let short = segment("887305", &first["short"][0], 51, Some(1), true).unwrap();
+        assert_eq!(short["versions"][0]["edition"], "花絮片段");
+        assert!(short.get("episodeNumber").is_none());
+    }
+    #[test]
+    fn actual_numbered_drama_does_not_number_bonus_or_short_clips() {
+        let data = fixture("episodes.json")["data"].clone();
+        assert!(data["list"].as_array().unwrap().len() > 30);
+        assert_eq!(episode_page_count(&data, 1).unwrap(), 1);
+        let main = &data["list"][0];
+        let episode = segment("778406", main, 1, Some(2), false).unwrap();
+        assert_eq!(episode["episodeNumber"], 1);
+        let bonus = data["list"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| number(r.get("isIntact")) == Some(7))
+            .unwrap();
+        let bonus = segment("778406", bonus, 25, Some(2), false).unwrap();
+        assert_eq!(bonus["versions"][0]["edition"], "彩蛋");
+        assert!(bonus.get("episodeNumber").is_none());
+        let mut short = data["short"][0].clone();
+        short["t1"] = json!("32");
+        short["isIntact"] = json!("1");
+        assert!(segment("778406", &short, 42, Some(2), true)
+            .unwrap()
+            .get("episodeNumber")
+            .is_none());
+    }
+    #[test]
+    fn episode_page_shape_and_bounds_fail_closed() {
+        let first = fixture("episodes-variety-page1.json")["data"].clone();
+        for key in ["current_page", "total_page"] {
+            let mut invalid = first.clone();
+            invalid.as_object_mut().unwrap().remove(key);
+            assert!(episode_page_count(&invalid, 1).is_err());
+        }
+        let mut invalid = first.clone();
+        invalid["total_page"] = json!(65);
+        assert_eq!(
+            episode_page_count(&invalid, 1).unwrap_err().code,
+            "response-too-large"
+        );
+        invalid = first.clone();
+        invalid["list"] = json!(vec![first["list"][0].clone(); 1001]);
+        assert!(episode_page_count(&invalid, 1).is_err());
+    }
+    #[test]
+    fn official_default_video_does_not_reorder_segments_or_guess_missing_ids() {
+        let info = fixture("info-variety.json")["data"].clone();
+        let mut rows = Vec::new();
+        for name in ["episodes-variety-page1.json", "episodes-variety-page2.json"] {
+            let page = fixture(name);
+            for row in page["data"]["list"].as_array().unwrap() {
+                rows.push(segment("887305", row, rows.len() + 1, Some(1), false).unwrap());
+            }
+        }
+        let work = work_from_info("887305", &info, rows.clone()).unwrap();
+        assert_eq!(work["defaultSegmentId"], "video:24691407");
+        assert_eq!(work["segments"][0]["id"], "video:24485448");
+        rows.retain(|row| row["id"] != "video:24691407");
+        assert!(work_from_info("887305", &info, rows)
+            .unwrap()
+            .get("defaultSegmentId")
+            .is_none());
     }
     #[test]
     fn cursor_and_identity_are_bounded() {

@@ -56,10 +56,10 @@ fn complete_entitlement(data: &Value, cid: &str, vid: &str) -> Result<(), Error>
     }
     let ip_limit = number(data.pointer("/user/iplimit"));
     if ip_limit.is_some_and(|v| v != 0) {
-        return Err(Error::new(
-            "permission-denied",
-            "当前地区无权播放该芒果视频",
-        ));
+        return Err(
+            Error::new("permission-denied", "当前地区无权播放该芒果视频")
+                .because("region-restricted"),
+        );
     }
     // The official desktop player defines preview from these components. A
     // non-empty stream URL or an account VIP flag alone can still be a trial.
@@ -73,9 +73,14 @@ fn complete_entitlement(data: &Value, cid: &str, vid: &str) -> Result<(), Error>
             })
     {
         return Err(Error::new(
-            "permission-denied",
+            if data.pointer("/user/login").and_then(Value::as_bool) == Some(false) {
+                "not-authenticated"
+            } else {
+                "permission-denied"
+            },
             "当前账号仅可试看或尚未获得完整播放权益",
-        ));
+        )
+        .because("entitlement-required"));
     }
     if number(data.pointer("/info/drmFlag")).is_some_and(|v| v != 0)
         || ["licenseUrl", "drmFirm", "drmType"].iter().any(|key| {
@@ -84,10 +89,10 @@ fn complete_entitlement(data: &Value, cid: &str, vid: &str) -> Result<(), Error>
                 .is_some_and(|v| !v.is_empty())
         })
     {
-        return Err(Error::new(
-            "permission-denied",
-            "该视频采用当前不支持的 DRM 保护",
-        ));
+        return Err(
+            Error::new("permission-denied", "该视频采用当前不支持的 DRM 保护")
+                .because("drm-unsupported"),
+        );
     }
     if number(data.pointer("/info/duration"))
         .filter(|v| *v > 0)
@@ -105,10 +110,10 @@ fn download_entitlement(data: &Value, info: &Value, cid: &str, vid: &str) -> Res
         return Err(Error::response());
     }
     if number(info.pointer("/config/download/downloadDisplay")) != Some(1) {
-        return Err(Error::new(
-            "permission-denied",
-            "芒果当前未为该视频开放下载入口",
-        ));
+        return Err(
+            Error::new("permission-denied", "芒果当前未为该视频开放下载入口")
+                .because("download-unavailable"),
+        );
     }
     Ok(())
 }
@@ -194,7 +199,9 @@ fn select<'a>(
             })
             .max_by_key(|(_, row)| number(row.get("videoHeight")).unwrap_or(0)),
     }
-    .ok_or_else(|| Error::new("permission-denied", "所选芒果清晰度不可用"))?;
+    .ok_or_else(|| {
+        Error::new("permission-denied", "所选芒果清晰度不可用").because("quality-unavailable")
+    })?;
     if number(selected.1.get("needPay")) != Some(0)
         || !supported_stream(selected.1)
         || selected
@@ -203,19 +210,27 @@ fn select<'a>(
             .and_then(Value::as_str)
             .is_none_or(str::is_empty)
     {
-        return Err(Error::new(
-            "permission-denied",
-            "当前账号无所选清晰度的完整权益",
-        ));
+        return Err(
+            Error::new("permission-denied", "当前账号无所选清晰度的完整权益")
+                .because("quality-unavailable"),
+        );
     }
     let full_duration = number(data.pointer("/info/duration")).ok_or_else(Error::response)?;
     let stream_duration = number(selected.1.get("ftime")).ok_or_else(Error::response)?;
     if full_duration.abs_diff(stream_duration) > 2 {
-        return Err(Error::new("permission-denied", "芒果返回了不完整的视频流"));
+        return Err(Error::new("permission-denied", "芒果返回了不完整的视频流")
+            .because("incomplete-stream"));
     }
     Ok((selected.0.clone(), selected.1, variants))
 }
 fn dispatch_url(connection: &str, data: &Value, row: &Value) -> Result<String, Error> {
+    dispatch_url_with(data, row, |url| decode_http(&http(connection, url, false)?))
+}
+fn dispatch_url_with(
+    data: &Value,
+    row: &Value,
+    mut fetch: impl FnMut(&str) -> Result<Value, Error>,
+) -> Result<String, Error> {
     let path = string(row, "url")?;
     let domains = data
         .get("stream_domain")
@@ -234,7 +249,7 @@ fn dispatch_url(connection: &str, data: &Value, row: &Value) -> Result<String, E
             .ok()
             .and_then(|v| safe_url(v.as_str()))
             .ok_or_else(Error::response)?;
-        let response = match http(connection, &url, false).and_then(|r| decode_http(&r)) {
+        let response = match fetch(&url) {
             Ok(value) => value,
             Err(error) => {
                 failure = error;
@@ -248,8 +263,20 @@ fn dispatch_url(connection: &str, data: &Value, row: &Value) -> Result<String, E
         {
             continue;
         }
-        return safe_url(string(&response, "info")?)
-            .ok_or_else(|| Error::new("permission-denied", "芒果当前 CDN 域名尚未获准"));
+        let candidate = string(&response, "info").and_then(|url| {
+            safe_url(url).ok_or_else(|| {
+                Error::new("permission-denied", "芒果当前 CDN 域名尚未获准")
+                    .because("asset-domain-denied")
+            })
+        });
+        match candidate {
+            Ok(url) => return Ok(url),
+            Err(error) => {
+                // Keep the exact selected stream, but try its other official
+                // dispatchers when this replica picks an unreviewed CDN.
+                failure = error;
+            }
+        }
     }
     Err(failure)
 }
@@ -328,24 +355,35 @@ fn subtitle_tracks(connection: &str, vid: &str, data: &Value) -> Result<Vec<Valu
 fn resolve(request: &Request, download: bool) -> Result<Resolved, Error> {
     validate_connection(&request.connection_id)?;
     let (cid, vid) = identity(&request.item_id, &request.segment_id, &request.version_id)?;
-    let data = streams(&request.connection_id, cid, vid)?;
+    let data = diagnosed("stream-list", streams(&request.connection_id, cid, vid))?;
+    log_stream_observation(&data, cid, vid);
     if download {
         if request.variant_id.as_deref().is_none_or(str::is_empty) {
             return Err(Error::request());
         }
-        let info = catalog::info(&request.connection_id, cid, Some(vid))?;
-        download_entitlement(&data, &info, cid, vid)?;
+        let info = diagnosed(
+            "download-info",
+            catalog::info(&request.connection_id, cid, Some(vid)),
+        )?;
+        diagnosed(
+            "download-entitlement",
+            download_entitlement(&data, &info, cid, vid),
+        )?;
     } else {
-        complete_entitlement(&data, cid, vid)?;
+        diagnosed(
+            "playback-entitlement",
+            complete_entitlement(&data, cid, vid),
+        )?;
     }
-    let (selected, row, variants) = select(&data, request.variant_id.as_deref())?;
-    let url = dispatch_url(&request.connection_id, &data, row)?;
+    let (selected, row, variants) =
+        diagnosed("quality", select(&data, request.variant_id.as_deref()))?;
+    let url = diagnosed("dispatch", dispatch_url(&request.connection_id, &data, row))?;
     let format = if row.get("fileFormat").and_then(Value::as_str) == Some("MP4") {
         "progressive"
     } else {
         "hls"
     };
-    let (asset, expires) = asset(&request.connection_id, &url)?;
+    let (asset, expires) = diagnosed("asset-register", asset(&request.connection_id, &url))?;
     // Subtitle availability is optional; a provider subtitle outage must not
     // turn an otherwise complete entitled video into an unavailable video.
     let subtitles = subtitle_tracks(&request.connection_id, vid, &data).unwrap_or_default();
@@ -357,6 +395,38 @@ fn resolve(request: &Request, download: bool) -> Result<Resolved, Error> {
         format,
         subtitles,
     })
+}
+fn diagnosed<T>(stage: &'static str, result: Result<T, Error>) -> Result<T, Error> {
+    result.inspect_err(|error| {
+        let _ = host(
+            4,
+            &json!({"level":"warn","operation":"media.playback",
+            "message":"Mango media resolution rejected",
+            "fields":{"stage":stage,"code":error.code,"reason":error.reason.unwrap_or("unknown")}}),
+        );
+    })
+}
+fn log_stream_observation(data: &Value, cid: &str, vid: &str) {
+    // These allowlisted scalars describe only the selected entitlement. No
+    // account ID, nickname, cookie, URL, ticket or complete body enters logs.
+    let fields = stream_observation(data, cid, vid);
+    let _ = host(
+        4,
+        &json!({"level":"debug","operation":"media.playback",
+        "message":"Mango selected media entitlement observed","fields":fields}),
+    );
+}
+fn stream_observation(data: &Value, cid: &str, vid: &str) -> Value {
+    let mut fields = json!({"stage":"stream-entitlement","identity_matched":
+        data.pointer("/info/collection_id").and_then(Value::as_str)==Some(cid) &&
+        data.pointer("/info/video_id").and_then(Value::as_str)==Some(vid)});
+    if let Some(login) = data.pointer("/user/login").and_then(Value::as_bool) {
+        fields["login"] = json!(login);
+    }
+    if let Some(purview) = number(data.pointer("/user/purview")) {
+        fields["purview"] = json!(purview);
+    }
+    fields
 }
 pub(super) fn playback(request: Request) -> Result<Value, Error> {
     let resolved = resolve(&request, false)?;
@@ -424,10 +494,20 @@ mod tests {
             .unwrap()
             .iter()
             .any(|s| number(s.get("needPay")) == Some(0)));
-        assert!(complete_entitlement(&data, "778406", "24623021").is_err());
+        let denied = complete_entitlement(&data, "778406", "24623021").unwrap_err();
+        assert_eq!(denied.code, "not-authenticated");
+        assert_eq!(denied.reason, Some("entitlement-required"));
         let mut disguised = data.clone();
         disguised["user"]["purview"] = json!("200");
         assert!(complete_entitlement(&disguised, "778406", "24623021").is_err());
+        let mut logged_in = data;
+        logged_in["user"]["login"] = json!(true);
+        assert_eq!(
+            complete_entitlement(&logged_in, "778406", "24623021")
+                .unwrap_err()
+                .code,
+            "permission-denied"
+        );
     }
     #[test]
     fn download_requires_exact_full_stream_and_official_enabled_entry() {
@@ -450,5 +530,68 @@ mod tests {
         assert!(select(&data, Some("h264:4:does-not-exist")).is_err());
         data["info"]["duration"] = json!("100000");
         assert!(select(&data, None).is_err());
+    }
+    #[test]
+    fn official_free_stream_trial_configuration_is_not_active_preview() {
+        let data = fixture("stream-free.json")["data"].clone();
+        assert_eq!(number(data.pointer("/info/trialtime")), Some(300));
+        // Current official full entitlement still includes a trial-time config.
+        complete_entitlement(&data, "687100", "22025165").unwrap();
+    }
+    #[test]
+    fn official_dispatch_host_projections_are_exactly_reviewed() {
+        for observation in fixture("dispatch-observations.json").as_array().unwrap() {
+            assert_eq!(observation["status"], "ok");
+            assert_eq!(observation["scheme"], "https");
+            assert_eq!(observation["port"], 443);
+            assert_eq!(observation["format"], "m3u8");
+            // URL is explicitly synthetic: only the hostname is real evidence.
+            let url = format!(
+                "https://{}/SYNTHETIC.m3u8",
+                observation["hostname"].as_str().unwrap()
+            );
+            assert!(safe_url(&url).is_some());
+        }
+        assert!(safe_url("https://unreviewed.titan.mgtv.com/SYNTHETIC.m3u8").is_none());
+        assert!(safe_url("https://pcvideotx.titan.mgtv.com.evil.invalid/SYNTHETIC.m3u8").is_none());
+    }
+    #[test]
+    fn dispatch_retries_same_selected_stream_after_unknown_cdn() {
+        let data = json!({"stream_domain":["https://web-disp.titan.mgtv.com", "https://web-disp1.titan.mgtv.com"]});
+        let row = json!({"url":"/SYNTHETIC-dispatch"});
+        let mut calls = Vec::new();
+        let resolved = dispatch_url_with(&data, &row, |url| {
+            calls.push(url.to_owned());
+            Ok(json!({"status":"ok","info":if calls.len()==1 {
+                "https://unreviewed.titan.mgtv.com/SYNTHETIC.m3u8"
+            } else {"https://pcvideotx.titan.mgtv.com/SYNTHETIC.m3u8"}}))
+        })
+        .unwrap();
+        assert_eq!(
+            calls,
+            vec![
+                "https://web-disp.titan.mgtv.com/SYNTHETIC-dispatch",
+                "https://web-disp1.titan.mgtv.com/SYNTHETIC-dispatch"
+            ]
+        );
+        assert_eq!(resolved, "https://pcvideotx.titan.mgtv.com/SYNTHETIC.m3u8");
+        let error = dispatch_url_with(&data, &row, |_| {
+            Ok(json!({"status":"ok","info":"https://unreviewed.titan.mgtv.com/SYNTHETIC.m3u8"}))
+        })
+        .unwrap_err();
+        assert_eq!(error.reason, Some("asset-domain-denied"));
+    }
+    #[test]
+    fn entitlement_diagnostics_preserve_only_safe_scalars() {
+        let mut data = fixture("stream-free.json")["data"].clone();
+        data["user"]["ticket"] = json!("DO-NOT-LOG-TICKET");
+        data["user"]["uuid"] = json!("DO-NOT-LOG-ACCOUNT");
+        data["stream"][0]["url"] = json!("https://cdn.invalid/?secret=DO-NOT-LOG-URL");
+        let fields = stream_observation(&data, "687100", "22025165");
+        assert_eq!(
+            fields,
+            json!({"stage":"stream-entitlement","identity_matched":true,"login":false,"purview":200})
+        );
+        assert!(!fields.to_string().contains("DO-NOT-LOG"));
     }
 }

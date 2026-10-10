@@ -1,0 +1,1119 @@
+{
+  "data": {
+    "total": 50,
+    "related": {
+      "img": "https://3img.hitv.com/preview/sp_images/2026/08/07/202608071012038364943.jpg",
+      "isIntact": "0",
+      "corner": [
+        {
+          "area": "rightUp",
+          "flag": "6",
+          "color": "#B362F2",
+          "font": "荐"
+        }
+      ],
+      "t1": "披荆斩棘2026",
+      "t2": "",
+      "url": "https://www.mgtv.com/b/896231/",
+      "video_id": "0"
+    },
+    "series": [
+      {
+        "playcnt": "30.1亿",
+        "img": "https://3img.hitv.com/preview/internettv/sp_images/ott/2019/4/17/zongyi/328606/20190417175429464-new.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "328606",
+        "t1": "密室大逃脱",
+        "url": "https://www.mgtv.com/b/328606/"
+      },
+      {
+        "playcnt": "25.4亿",
+        "img": "https://1img.hitv.com/preview/internettv/sp_images/ott/2020/7/2/zongyi/338403/20200702175114030-new.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "338403",
+        "t1": "密室大逃脱 第二季",
+        "url": "https://www.mgtv.com/b/338403/"
+      },
+      {
+        "playcnt": "25.3亿",
+        "img": "https://3img.hitv.com/preview/internettv/sp_images/ott/2021/4/30/zongyi/368214/20210430143853748-new.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "368214",
+        "t1": "密室大逃脱 第三季",
+        "url": "https://www.mgtv.com/b/368214/"
+      },
+      {
+        "playcnt": "32.4亿",
+        "img": "https://4img.hitv.com/preview/sp_images/2022/07/08/202207082237432925069.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "458367",
+        "t1": "密室大逃脱 第四季",
+        "url": "https://www.mgtv.com/b/458367/"
+      },
+      {
+        "playcnt": "32.0亿",
+        "img": "https://4img.hitv.com/preview/sp_images/2023/05/26/202305261613050765319.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "550783",
+        "t1": "密室大逃脱 第五季",
+        "url": "https://www.mgtv.com/b/550783/"
+      },
+      {
+        "playcnt": "27.6亿",
+        "img": "https://2img.hitv.com/preview/sp_images/2024/08/19/202408191415228966502.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "666373",
+        "t1": "密室大逃脱 第六季",
+        "url": "https://www.mgtv.com/b/666373/"
+      },
+      {
+        "playcnt": "28.5亿",
+        "img": "https://2img.hitv.com/preview/sp_images/2025/06/26/202506261508193608306.jpg_220x125.jpg",
+        "isIntact": "3",
+        "paymark": 1,
+        "id": "768610",
+        "t1": "密室大逃脱 第七季",
+        "url": "https://www.mgtv.com/b/768610/"
+      }
+    ],
+    "count": 50,
+    "total_page": 2,
+    "short": [
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/10/07/202610070934254296749.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "张真源陈哲远加入麻辣巧克力受害者联盟",
+        "isvip": "0",
+        "t2": "01:43",
+        "url": "/b/887305/24691589.html",
+        "t3": "张真源陈哲远加入麻辣巧克力受害者联盟",
+        "video_id": "24691589"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/07/202610070936404581725.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "陈哲远闯关尝遍了鲜香麻辣",
+        "isvip": "0",
+        "t2": "00:38",
+        "url": "/b/887305/24691576.html",
+        "t3": "好撑！陈哲远闯关尝遍了鲜香麻辣",
+        "video_id": "24691576"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/10/07/202610070926411956610.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "钓系女孩周笔畅钓自己",
+        "isvip": "0",
+        "t2": "00:21",
+        "url": "/b/887305/24691594.html",
+        "t3": "空中吃饼干超难绷！钓系女孩周笔畅钓自己",
+        "video_id": "24691594"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/07/202610070919116229916.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "彭昱畅成大张伟嘴替",
+        "isvip": "0",
+        "t2": "00:46",
+        "url": "/b/887305/24691601.html",
+        "t3": "脑回路并网！彭昱畅成大张伟嘴替",
+        "video_id": "24691601"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/07/202610070928017771528.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "大张伟和小饼干拉扯",
+        "isvip": "0",
+        "t2": "00:55",
+        "url": "/b/887305/24691593.html",
+        "t3": "大张伟和小饼干拉扯",
+        "video_id": "24691593"
+      },
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/10/07/202610070932571305860.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "大张伟误入许凯单线",
+        "isvip": "0",
+        "t2": "01:39",
+        "url": "/b/887305/24691592.html",
+        "t3": "只能硬撑！大张伟误入许凯单线",
+        "video_id": "24691592"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/10/05/202610051930131254989.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "揭开友爱之家终极真相",
+        "isvip": "0",
+        "t2": "00:27",
+        "url": "/b/887305/24690543.html",
+        "t3": "《友爱之家Ⅱ》穿梭机预告",
+        "video_id": "24690543"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/09/30/202609300056599277708.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "特调小队进入终极副本",
+        "isvip": "0",
+        "t2": "00:14",
+        "url": "/b/887305/24683792.html",
+        "t3": "特调小队进入终极副本",
+        "video_id": "24683792"
+      },
+      {
+        "img": "https://0img.hitv.com/preview/sp_images/2026/09/30/202609300054044669454.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "许凯变得胆子肥嘟嘟",
+        "isvip": "0",
+        "t2": "01:07",
+        "url": "/b/887305/24683788.html",
+        "t3": "许凯变得胆子肥嘟嘟",
+        "video_id": "24683788"
+      },
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/30/202609300052153854146.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "周笔畅张宥浩最佳观赏位围观五怂",
+        "isvip": "0",
+        "t2": "01:55",
+        "url": "/b/887305/24683786.html",
+        "t3": "“双坦”周笔畅张宥浩最佳观赏位围观五怂",
+        "video_id": "24683786"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/30/202609300049387251346.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "张真源游戏惩罚竟成舒适区",
+        "isvip": "0",
+        "t2": "01:19",
+        "url": "/b/887305/24683780.html",
+        "t3": "张真源游戏惩罚竟成舒适区",
+        "video_id": "24683780"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/30/202609300047238202566.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "陈哲远跳舞闯关快要练成男团了",
+        "isvip": "0",
+        "t2": "01:13",
+        "url": "/b/887305/24683779.html",
+        "t3": "陈哲远跳舞快要练成男团了",
+        "video_id": "24683779"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/30/202609300044003623401.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "彭昱畅捉迷藏开出双黄蛋npc",
+        "isvip": "0",
+        "t2": "00:41",
+        "url": "/b/887305/24683761.html",
+        "t3": "彭昱畅捉迷藏开出双黄蛋npc",
+        "video_id": "24683761"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/29/202609291035058104686.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "终极副本开启",
+        "isvip": "0",
+        "t2": "00:23",
+        "url": "/b/887305/24681589.html",
+        "t3": "《友爱之家Ⅰ》穿梭机预告：特调小队进入友爱之家挑战终极副本",
+        "video_id": "24681589"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/29/202609291031035814523.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "欢迎来到友爱之家",
+        "isvip": "0",
+        "t2": "00:42",
+        "url": "/b/887305/24681588.html",
+        "t3": "《友爱之家Ⅰ》场景预告：欢迎来到友爱之家",
+        "video_id": "24681588"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/23/202609230945138098216.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "周笔畅变密逃阿贝贝",
+        "isvip": "0",
+        "t2": "00:57",
+        "url": "/b/887305/24669842.html",
+        "t3": "贴贴更安心！周笔畅变密逃阿贝贝",
+        "video_id": "24669842"
+      },
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/23/202609230933590791644.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "许凯演绎soso侠会飞",
+        "isvip": "0",
+        "t2": "00:34",
+        "url": "/b/887305/24669778.html",
+        "t3": "许凯演绎“soso侠会飞”",
+        "video_id": "24669778"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/23/202609230921225469304.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "陈哲远勇护张真源",
+        "isvip": "0",
+        "t2": "00:57",
+        "url": "/b/887305/24669696.html",
+        "t3": "为弟做“坦”！陈哲远勇护张真源",
+        "video_id": "24669696"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/23/202609230919066818809.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "大张伟一线吃瓜NPC感情线",
+        "isvip": "0",
+        "t2": "00:48",
+        "url": "/b/887305/24669689.html",
+        "t3": "大张伟一线吃瓜NPC感情线",
+        "video_id": "24669689"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/22/202609221546056947849.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "张真源搞怪拍照也能猛猛出片",
+        "isvip": "1",
+        "t2": "01:14",
+        "url": "/b/887305/24668531.html",
+        "t3": "密室大逃脱 第八季 专属花絮第4期：花式整活！张真源搞怪拍照也能猛猛出片",
+        "video_id": "24668531"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/22/202609221545037403040.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "张真源探索房间自己吓自己？",
+        "isvip": "1",
+        "t2": "01:10",
+        "url": "/b/887305/24668530.html",
+        "t3": "密室大逃脱 第八季 专属花絮第3期：张真源探索房间自己吓自己？徒手爬绳骨骼清奇认证",
+        "video_id": "24668530"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/09/22/202609221156304464339.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "童话小镇玄机重重",
+        "isvip": "0",
+        "t2": "00:23",
+        "url": "/b/887305/24667233.html",
+        "t3": "《狼来了II》穿梭机预告",
+        "video_id": "24667233"
+      },
+      {
+        "img": "https://4img.hitv.com/preview/sp_images/2026/09/18/202609181419115978997.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "密逃8快问快答之唐艺昕",
+        "isvip": "0",
+        "t2": "02:25",
+        "url": "/b/887305/24654862.html",
+        "t3": "《密室大逃脱8》快问快答：唐艺昕说周笔畅让自己很有安全感",
+        "video_id": "24654862"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/16/202609161035564325839.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "特调小队空降勇士大会",
+        "isvip": "0",
+        "t2": "00:11",
+        "url": "/b/887305/24643283.html",
+        "t3": "特调小队空降勇士大会",
+        "video_id": "24643283"
+      },
+      {
+        "img": "https://0img.hitv.com/preview/sp_images/2026/09/16/202609161026578946593.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "彭昱畅张真源默契挑战",
+        "isvip": "0",
+        "t2": "00:59",
+        "url": "/b/887305/24643174.html",
+        "t3": "彭昱畅张真源默契挑战一个敢喂一个敢接",
+        "video_id": "24643174"
+      },
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/16/202609161023332205083.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "特调小队盖章认证“钻腋”团队",
+        "isvip": "0",
+        "t2": "00:25",
+        "url": "/b/887305/24643115.html",
+        "t3": "特调小队盖章认证“钻腋”团队",
+        "video_id": "24643115"
+      },
+      {
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/16/202609161020182497226.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "“哲古拉公爵”陈哲远优雅登场",
+        "isvip": "0",
+        "t2": "00:49",
+        "url": "/b/887305/24643114.html",
+        "t3": "“哲古拉公爵”陈哲远优雅登场",
+        "video_id": "24643114"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/16/202609161016080346777.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "2",
+        "contentType": "0",
+        "t1": "许凯努力驯服抓娃娃机",
+        "isvip": "0",
+        "t2": "00:59",
+        "url": "/b/887305/24643106.html",
+        "t3": "许凯努力驯服抓娃娃机",
+        "video_id": "24643106"
+      },
+      {
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/15/202609151751361574622.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "童话世界副本开启",
+        "isvip": "0",
+        "t2": "00:45",
+        "url": "/b/887305/24640160.html",
+        "t3": "《狼来了Ⅰ》场景预告：童话世界副本开启",
+        "video_id": "24640160"
+      },
+      {
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/15/202609151138047765587.jpg_220x125.jpg",
+        "clip_id": "887305",
+        "isnew": "0",
+        "attr": "4",
+        "contentType": "0",
+        "t1": "欢迎进入魔法小镇",
+        "isvip": "0",
+        "t2": "00:22",
+        "url": "/b/887305/24639313.html",
+        "t3": "《狼来了Ⅰ》穿梭机预告：欢迎进入魔法小镇",
+        "video_id": "24639313"
+      }
+    ],
+    "list": [
+      {
+        "t4": "2026-09-08",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/08/202609081158032996734.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24618061.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-08"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "15:35",
+        "contentType": "0",
+        "t1": "31",
+        "t2": "超前彩蛋：全员解锁知识配碳水",
+        "next_id": "24621496",
+        "t3": "密室大逃脱第八季 超前彩蛋第8期：全员美食局背古诗解锁知识配碳水 大张伟彭昱畅callback狂暴名场面",
+        "ts": "2026-09-07 23:26:24.0",
+        "video_id": "24618061"
+      },
+      {
+        "t4": "2026-09-09",
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/08/202609082251441754451.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24621496.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-09"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "62:52",
+        "contentType": "0",
+        "t1": "32",
+        "t2": "第8期：云绮织梦Ⅱ（上）",
+        "next_id": "24621497",
+        "t3": "密室大逃脱第八季 第8期：云绮织梦Ⅱ（上）",
+        "ts": "2026-09-08 22:48:55.0",
+        "video_id": "24621496"
+      },
+      {
+        "t4": "2026-09-09",
+        "img": "https://2img.hitv.com/preview/sp_images/2026/09/08/202609082253420542965.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24621497.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-09"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "52:14",
+        "contentType": "0",
+        "t1": "33",
+        "t2": "第8期：云绮织梦Ⅱ（下）",
+        "next_id": "24627649",
+        "t3": "密室大逃脱第八季 第8期：云绮织梦Ⅱ（下）",
+        "ts": "2026-09-08 22:48:58.0",
+        "video_id": "24621497"
+      },
+      {
+        "t4": "2026-09-11",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/10/202609102134512031580.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24627649.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-11"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "30:14",
+        "contentType": "0",
+        "t1": "34",
+        "t2": "Plus版：冰箱大冲关默契爆表",
+        "next_id": "24637815",
+        "t3": "密室大逃脱第八季 Plus版第8期：全员冰箱大冲关互相帮助默契爆表 许凯周笔畅张真源姐弟三人默契发问",
+        "ts": "2026-09-10 21:27:25.0",
+        "video_id": "24627649"
+      },
+      {
+        "t4": "2026-09-15",
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/14/202609142245479891912.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24637815.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-15"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "28:40",
+        "contentType": "0",
+        "t1": "35",
+        "t2": "超前彩蛋：队长游戏心跳加速",
+        "next_id": "24642277",
+        "t3": "密室大逃脱第八季 超前彩蛋第9期：全员队长游戏心跳加速 许凯彭昱畅张真源“魔王附身”玩出新高度",
+        "ts": "2026-09-14 22:28:02.0",
+        "video_id": "24637815"
+      },
+      {
+        "t4": "2026-09-16",
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/15/202609152334032184502.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24642277.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-16"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "73:59",
+        "contentType": "0",
+        "t1": "36",
+        "t2": "第9期：狼来了Ⅰ（上）",
+        "next_id": "24642278",
+        "t3": "密室大逃脱第八季 第9期：狼来了Ⅰ（上）",
+        "ts": "2026-09-15 23:30:49.0",
+        "video_id": "24642277"
+      },
+      {
+        "t4": "2026-09-16",
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/15/202609152334403693416.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24642278.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-16"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "71:08",
+        "contentType": "0",
+        "t1": "37",
+        "t2": "第9期：狼来了Ⅰ（下）",
+        "next_id": "24650407",
+        "t3": "密室大逃脱第八季 第9期：狼来了Ⅰ（下）",
+        "ts": "2026-09-15 23:30:52.0",
+        "video_id": "24642278"
+      },
+      {
+        "t4": "2026-09-18",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/17/202609172142204165963.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24650407.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-18"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "31:17",
+        "contentType": "0",
+        "t1": "38",
+        "t2": "Plus版：许凯彭昱畅极限拉扯",
+        "next_id": "24665039",
+        "t3": "密室大逃脱第八季 Plus版第9期：全员协调性接力游戏团魂炸裂 许凯彭昱畅猜我是谁游戏极限拉扯",
+        "ts": "2026-09-17 21:30:45.0",
+        "video_id": "24650407"
+      },
+      {
+        "t4": "2026-09-22",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/21/202609212241506628436.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24665039.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-22"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "17:04",
+        "contentType": "0",
+        "t1": "39",
+        "t2": "超前彩蛋：特调小队狼人杀整活",
+        "next_id": "24669573",
+        "t3": "密室大逃脱第八季 超前彩蛋第10期：特调小队狼人杀人均八百个心眼子 许凯陈哲远双向奔赴互兜底",
+        "ts": "2026-09-21 22:31:57.0",
+        "video_id": "24665039"
+      },
+      {
+        "t4": "2026-09-23",
+        "img": "https://4img.hitv.com/preview/sp_images/2026/09/22/202609222248572603432.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24669573.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-23"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "80:09",
+        "contentType": "0",
+        "t1": "40",
+        "t2": "第10期：狼来了II（上）",
+        "next_id": "24669574",
+        "t3": "密室大逃脱第八季 第10期：狼来了II（上）",
+        "ts": "2026-09-22 22:43:31.0",
+        "video_id": "24669573"
+      },
+      {
+        "t4": "2026-09-23",
+        "img": "https://3img.hitv.com/preview/sp_images/2026/09/22/202609222249523208581.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24669574.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-23"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "55:47",
+        "contentType": "0",
+        "t1": "41",
+        "t2": "第10期：狼来了II（下）",
+        "next_id": "24675941",
+        "t3": "密室大逃脱第八季 第10期：狼来了II（下）",
+        "ts": "2026-09-22 22:43:34.0",
+        "video_id": "24669574"
+      },
+      {
+        "t4": "2026-09-25",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/09/24/202609242203282638887.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24675941.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-25"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "29:34",
+        "contentType": "0",
+        "t1": "42",
+        "t2": "Plus版：全员矿洞脑暴速通谜题",
+        "next_id": "24681522",
+        "t3": "密室大逃脱第八季 Plus版第10期：全员矿洞脑暴速通谜题 张真源陈哲远组团挑战单线勇气全开",
+        "ts": "2026-09-24 22:01:00.0",
+        "video_id": "24675941"
+      },
+      {
+        "t4": "2026-09-29",
+        "img": "https://0img.hitv.com/preview/sp_images/2026/09/28/202609282349232985799.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24681522.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-29"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "24:09",
+        "contentType": "0",
+        "t1": "43",
+        "t2": "超前彩蛋：全员挑战徽章游戏",
+        "next_id": "24683738",
+        "t3": "密室大逃脱第八季 超前彩蛋第11期：特调小队挑战爆笑徽章游戏 周笔畅张真源被吓到退出游戏？",
+        "ts": "2026-09-28 23:41:58.0",
+        "video_id": "24681522"
+      },
+      {
+        "t4": "2026-09-30",
+        "img": "https://0img.hitv.com/preview/sp_images/2026/09/29/202609292359143064340.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24683738.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-30"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "87:01",
+        "contentType": "0",
+        "t1": "44",
+        "t2": "第11期：友爱之家Ⅰ（上）",
+        "next_id": "24683739",
+        "t3": "密室大逃脱第八季 第11期：友爱之家Ⅰ（上）",
+        "ts": "2026-09-29 23:20:40.0",
+        "video_id": "24683738"
+      },
+      {
+        "t4": "2026-09-30",
+        "img": "https://0img.hitv.com/preview/sp_images/2026/09/30/202609300000344989700.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24683739.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-09-30"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "63:46",
+        "contentType": "0",
+        "t1": "45",
+        "t2": "第11期：友爱之家Ⅰ（下）",
+        "next_id": "24686738",
+        "t3": "密室大逃脱第八季 第11期：友爱之家Ⅰ（下）",
+        "ts": "2026-09-29 23:20:43.0",
+        "video_id": "24683739"
+      },
+      {
+        "t4": "2026-10-02",
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/01/202610012304087383783.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24686738.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-10-02"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "23:29",
+        "contentType": "0",
+        "t1": "46",
+        "t2": "Plus版：小队超燃合力挑战",
+        "next_id": "24690611",
+        "t3": "密室大逃脱第八季 Plus版第11期：特调小队合力挑战燃起来了 张真源陈哲远抱团取暖秒被抓？",
+        "ts": "2026-10-01 22:56:28.0",
+        "video_id": "24686738"
+      },
+      {
+        "t4": "2026-10-06",
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/05/202610052126155964403.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24690611.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-10-06"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "16:21",
+        "contentType": "0",
+        "t1": "47",
+        "t2": "超前彩蛋：全员复盘捉迷藏游戏",
+        "next_id": "24691407",
+        "t3": "密室大逃脱第八季 超前彩蛋第12期：特调小队开心干饭超满足 全员投入复盘捉迷藏游戏",
+        "ts": "2026-10-05 21:23:02.0",
+        "video_id": "24690611"
+      },
+      {
+        "t4": "2026-10-07",
+        "img": "https://2img.hitv.com/preview/sp_images/2026/10/06/202610062310548754639.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "0",
+        "url": "/b/887305/24691407.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-10-07"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "92:35",
+        "contentType": "0",
+        "t1": "48",
+        "t2": "第12期：友爱之家Ⅱ（上）",
+        "next_id": "24691408",
+        "t3": "密室大逃脱第八季 第12期：友爱之家Ⅱ（上）",
+        "ts": "2026-10-06 23:02:48.0",
+        "video_id": "24691407"
+      },
+      {
+        "t4": "2026-10-07",
+        "img": "https://1img.hitv.com/preview/sp_images/2026/10/06/202610062312510762667.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "0",
+        "url": "/b/887305/24691408.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-10-07"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "78:50",
+        "contentType": "0",
+        "t1": "49",
+        "t2": "第12期：友爱之家Ⅱ（下）",
+        "next_id": "24694639",
+        "t3": "密室大逃脱第八季 第12期：友爱之家Ⅱ（下）",
+        "ts": "2026-10-06 23:02:51.0",
+        "video_id": "24691408"
+      },
+      {
+        "t4": "2026-10-09",
+        "img": "https://4img.hitv.com/preview/sp_images/2026/10/08/202610082018239665967.jpg_220x125.jpg",
+        "src_clip_id": "887305",
+        "isnew": "0",
+        "isvip": "1",
+        "url": "/b/887305/24694639.html",
+        "isIntact": "1",
+        "corner": [
+          {
+            "area": "rightUp",
+            "flag": "1",
+            "color": "#E4B659",
+            "font": "VIP"
+          },
+          {
+            "area": "rightDown",
+            "flag": "5",
+            "color": "#FFFFFF",
+            "font": "2026-10-09"
+          }
+        ],
+        "clip_id": "887305",
+        "time": "31:03",
+        "contentType": "0",
+        "t1": "50",
+        "t2": "Plus版：全员复盘逃生游戏策略",
+        "next_id": "0",
+        "t3": "密室大逃脱第八季 Plus版第12期：全员复盘逃生游戏策略布局 大张伟许凯双人单线引全员爆笑？",
+        "ts": "2026-10-08 20:05:09.0",
+        "video_id": "24694639"
+      }
+    ],
+    "current_page": 2,
+    "info": {
+      "title": "密室大逃脱 第八季",
+      "type": "0",
+      "isvip": "1",
+      "desc": "10月14日12:00收官宴惊喜放送"
+    }
+  },
+  "code": 200,
+  "msg": ""
+}

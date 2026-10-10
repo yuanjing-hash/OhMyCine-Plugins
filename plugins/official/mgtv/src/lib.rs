@@ -70,7 +70,7 @@ pub unsafe extern "C" fn omc_invoke(operation: i32, pointer: i32, length: i32) -
     };
     let response = match result {
         Ok(value) => value,
-        Err(error) => json!({"pluginError":{"code":error.code,"message":error.message}}),
+        Err(error) => error.envelope(),
     };
     let bytes = serde_json::to_vec(&response).unwrap_or_default();
     let length = bytes.len();
@@ -98,10 +98,26 @@ fn dispatch(operation: i32, request: &[u8]) -> Result<Value, Error> {
 struct Error {
     code: &'static str,
     message: &'static str,
+    reason: Option<&'static str>,
 }
 impl Error {
     fn new(code: &'static str, message: &'static str) -> Self {
-        Self { code, message }
+        Self {
+            code,
+            message,
+            reason: None,
+        }
+    }
+    fn because(mut self, reason: &'static str) -> Self {
+        self.reason = Some(reason);
+        self
+    }
+    fn envelope(self) -> Value {
+        let mut value = json!({"pluginError":{"code":self.code,"message":self.message}});
+        if let Some(reason) = self.reason {
+            value["pluginError"]["reason"] = json!(reason);
+        }
+        value
     }
     fn response() -> Self {
         Self::new("invalid-response", "芒果接口响应无效")
@@ -126,7 +142,7 @@ fn host(operation: i32, request: &Value) -> Result<Value, Error> {
         )
     };
     if size < 0 || size as usize > buffer.len() {
-        return Err(Error::new(
+        let error = Error::new(
             if size == -2 {
                 "permission-denied"
             } else {
@@ -137,7 +153,12 @@ fn host(operation: i32, request: &Value) -> Result<Value, Error> {
             } else {
                 "宿主能力调用失败"
             },
-        ));
+        );
+        return Err(if operation == 1 && size == -2 {
+            error.because("network-access-denied")
+        } else {
+            error
+        });
     }
     buffer.truncate(size as usize);
     serde_json::from_slice::<Value>(&buffer)
@@ -260,8 +281,9 @@ fn safe_url(value: &str) -> Option<String> {
     Some(url.into())
 }
 fn asset(connection: &str, url: &str) -> Result<(String, String), Error> {
-    let url =
-        safe_url(url).ok_or_else(|| Error::new("permission-denied", "芒果资源域名尚未获准"))?;
+    let url = safe_url(url).ok_or_else(|| {
+        Error::new("permission-denied", "芒果资源域名尚未获准").because("asset-domain-denied")
+    })?;
     let data = host(
         7,
         &json!({"connectionId":connection,"url":url,"headers":{"Referer":"https://www.mgtv.com/","User-Agent":USER_AGENT},"ttlSeconds":300}),
@@ -295,6 +317,17 @@ fn storage_set(connection: &str, key: &str, value: &Value) -> Result<(), Error> 
 #[cfg(test)]
 mod http_payload_tests {
     use super::*;
+
+    #[test]
+    fn safe_error_reason_is_optional_and_never_contains_transport_values() {
+        let legacy = Error::new("invalid-response", "固定诊断").envelope();
+        assert!(legacy["pluginError"].get("reason").is_none());
+        let error = Error::new("permission-denied", "固定诊断")
+            .because("asset-domain-denied")
+            .envelope();
+        assert_eq!(error["pluginError"]["reason"], "asset-domain-denied");
+        assert_eq!(error["pluginError"].as_object().unwrap().len(), 3);
+    }
 
     #[test]
     fn real_detail_and_episode_payloads_exceed_display_string_limit() {
