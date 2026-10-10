@@ -4,6 +4,7 @@
 
 | 文件 | 官方接口 |
 | --- | --- |
+| auth-generate.json | `https://nuc.api.mgtv.com/GetMultiPic`，真实匿名二维码生成响应，未扫码；rcode 和全部 QR 查询值脱敏，保留完整 JSON 结构与官方登录域名/path |
 | channels.json | `https://pianku.api.mgtv.com/rider/config/platformChannels/v1?platform=pcweb` |
 | channel.json | `https://pianku.api.mgtv.com/rider/config/channel/v1?channelId=2&platform=pcweb` |
 | catalog.json | `https://pianku.api.mgtv.com/rider/list/pcweb/v3?platform=pcweb&channelId=2&pn=1&pc=2&hudong=1&_support=10000000` |

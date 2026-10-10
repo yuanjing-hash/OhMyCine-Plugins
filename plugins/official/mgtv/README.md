@@ -31,7 +31,7 @@ Windows/Android 的真实播放器和账号联调属于单独验收，Rust fixtu
 
 ## 验证与本地构建
 
-当前 13 项 Rust 测试包含真实详情/分集 HTTP 载荷的回归：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
+当前 14 项 Rust 测试包含真实详情/分集 HTTP 载荷和完整脱敏二维码响应的回归：Base64 正文按 Host 4 MiB 载荷边界处理，不能使用显示字段的 4 KiB 长度限制。Server 的 `TestMangoWASMCurrentHostPublicFixtureSmoke` 通过实际构建 WASM 调用当前 Go Host 的 HTTP、storage 与 clock，覆盖官方导航、完整详情/分集和扫码创建。`TestMangoWASMCurrentHostMediaPlaybackAndOfflineEntitlement` 另覆盖免费完整流的播放及 op20 下载、真实 VIP 试看拒绝和合成禁用下载负例，校验 owner-bound asset.register 与当前 Go DTO。其 HTTP 使用真实公开脱敏目录/权益 fixture 和合成 QR、CDN 调度及空字幕控制响应，不访问提供方、不登录真实账号，也不证明媒体分片播放或下载。
 
 ```powershell
 cargo fmt --manifest-path plugins/official/mgtv/Cargo.toml --all -- --check

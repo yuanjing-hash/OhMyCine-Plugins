@@ -249,6 +249,18 @@ fn account_value(data: &Value) -> Result<Value, Error> {
 mod tests {
     use super::*;
     #[test]
+    fn observed_complete_qr_response_keeps_reviewed_login_target() {
+        let payload: Value =
+            serde_json::from_str(include_str!("../fixtures/auth-generate.json")).unwrap();
+        let (rcode, target) = parse_generate(provider_data(&payload).unwrap()).unwrap();
+        assert_eq!(rcode.len(), 32);
+        let target = Url::parse(&target).unwrap();
+        assert_eq!(target.scheme(), "https");
+        assert_eq!(target.host_str(), Some("oauth.mgtv.com"));
+        assert_eq!(target.path(), "/2.0/multicode_login");
+        assert_eq!(target.query_pairs().count(), 7);
+    }
+    #[test]
     fn real_pending_and_expired_codes_do_not_authenticate() {
         assert_eq!(
             poll_code(&json!({"code":203,"msg":"未扫码登录","seqId":""})).unwrap(),
