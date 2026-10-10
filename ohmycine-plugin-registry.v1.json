@@ -4,7 +4,7 @@
     "id": "org.ohmycine.official",
     "name": "OhMyCine 官方插件库",
     "homepage": "https://github.com/yuanjing-hash/OhMyCine-Plugins",
-    "updatedAt": "2026-10-10T10:23:36Z"
+    "updatedAt": "2026-10-10T12:27:34Z"
   },
   "plugins": [
     {
@@ -43,17 +43,17 @@
       "id": "org.ohmycine.mgtv",
       "name": "芒果 TV",
       "description": "使用管理员芒果账号浏览官方点播目录、验证具体视频权益并播放；只读媒体库。",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "channel": "beta",
       "categories": [
         "online-media",
         "video-site"
       ],
-      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-mgtv-v0.1.0/org.ohmycine.mgtv-0.1.0.manifest.json",
-      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-mgtv-v0.1.0/org.ohmycine.mgtv-0.1.0.omcp",
-      "packageSha256": "71f412d048cd3615854747a154a8c2e6c3b556170c64cdf75de6817cd03b3b1f",
+      "manifestUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-mgtv-v0.1.1/org.ohmycine.mgtv-0.1.1.manifest.json",
+      "packageUrl": "https://github.com/yuanjing-hash/OhMyCine-Plugins/releases/download/plugin-mgtv-v0.1.1/org.ohmycine.mgtv-0.1.1.omcp",
+      "packageSha256": "b07f7fb68d5e2008c363548629aaf6d20932e3b7ec20888d732b25c43379d338",
       "minServerVersion": "0.1.1",
-      "releaseNotes": "新增芒果只读点播媒体库、官方分类分页和筛选、管理员扫码登录、逐视频及清晰度完整权益验证；通过通用操作20下载已授权完整流到Player本地。真实账号、VIP、字幕和平台运行仍需联调验收。"
+      "releaseNotes": "修正扫码及上游失败的错误响应，保留官方二维码完整响应校验。配合 Server 1.1.74 与 Player 1.1.59 修复连续浏览失效、海报查询超时和已知 Clash Fake-IP 解析兼容。真实账号、VIP、字幕和设备运行仍需实际验收。"
     }
   ]
 }
