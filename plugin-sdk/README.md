@@ -81,6 +81,16 @@ npm run build:fixture
 
 ## 宿主能力边界
 
+### 原生 Player 本地离线下载（Server 0.1.1）
+
+新增 `media.offline_download_plan` 对应 Runtime v1 operation **20**；既有 1–19 编号不变。插件需要 `download.plan` 的当前授权，并按选中的 `workId / segmentId / versionId / variantId` 重新验证提供方完整播放权限。参考 [`schema/offline-download-plan-v1.schema.json`](schema/offline-download-plan-v1.schema.json) 和 [`fixtures/offline-download-plan.v1.json`](fixtures/offline-download-plan.v1.json)。响应只包含 UUID `urlRef`，声明 `progressive`、`dash` 或 `hls`；不得返回裸 URL、敏感 Header、本地路径或未经明确选择的其他清晰度。受 DRM 保护、仅试看、账号未知和过期登录应返回业务错误。
+
+这项能力用于 Player 本地目录，不创建 Server 下载任务，也不要求 `library_ingest`。Server 将短时控制清单展开成有序轨道、初始化段、字节范围与 AES-128 指令；Player 原生层负责下载和封装。普通在线 DTO 保持同源 opaque 引用。只有经设备 read + download 授权的私有 `offline-plan` 响应可以向原生层返回无提供方凭据的短时 HTTPS CDN 地址；需要提供方敏感 Header 时使用专用同源 `offline-assets` 网关，禁止普通播放资产路由读取此类离线引用。该响应、URL、Header 和密钥不得进入日志、WebView 或持久任务记录。
+
+Server 的 HLS 离线支持有界 VOD：每控制清单最多 2 MiB、50000 行、单行 8192 字节；每计划最多 8192 个下载单元、48 次控制读取、32 把 AES-128 密钥及两层 master。支持相对 URI、独立音轨、`EXT-X-MAP`、显式/隐式 byte range 和显式/default sequence IV。要求 `ENDLIST`，拒绝直播、`SAMPLE-AES`、未知 KEYFORMAT、discontinuity、GAP/PART/SKIP 和存在多组可选视频的 master。stable unit ID 基于轨道、sequence/map 顺序及路径/range 摘要，不包含签名 query；刷新时必须校验轨道拓扑并核验已下载字节。
+
+只读扫码插件可声明 `site.auth`，无需 `site.interaction`。`site.auth.start/poll` 沿用 operation 10/11；旧插件的 `site.interaction` 仍被兼容。成功 `credentialCommit` 返回 `credentialVersion`；新的 `site.auth` 插件在 confirmed poll 顶层回传这个正整数，供 Server 对账号摘要做当前凭据版本 CAS。`account.membership` 可选 `{status:"active"|"inactive"|"unknown",label?,expiresAt?:RFC3339}`。该字段仅用于账号展示，不能替代内容鉴权。摘要带观察时间保存，超过 24 小时、会员过期、明确健康状态变化或凭据重置后显示未知。
+
 插件只适配提供方特有事实：登录、内容发现、播放/下载方案与该插件的元数据。插件不得实现上传、移动、删除、冲突处理、重命名或 NFO/JPG 写入，也不会获得本地绝对路径、115 Cookie 或其他 Storage 凭据。
 
 ```text

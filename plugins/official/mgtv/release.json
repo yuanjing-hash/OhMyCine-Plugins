@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "channel": "beta",
+  "categories": [
+    "online-media",
+    "video-site"
+  ],
+  "releaseNotes": "新增芒果只读点播媒体库、官方分类分页和筛选、管理员扫码登录、逐视频及清晰度完整权益验证；通过通用操作20下载已授权完整流到Player本地。真实账号、VIP、字幕和平台运行仍需联调验收。"
+}

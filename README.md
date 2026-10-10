@@ -22,6 +22,7 @@ ohmycine-plugin-registry.v1.json  可安装版本 Registry
 
 - `org.ohmycine.bilibili`：Bilibili 在线媒体库 Beta。
 - `org.ohmycine.guolia`：挂了.com 登录型 BT 资源站 Beta，支持固定镜像、种子搜索和磁力解析。
+- `org.ohmycine.mgtv`：[芒果 TV 只读点播媒体库 Beta](plugins/official/mgtv/README.md)，支持管理员共享账号、逐视频权益校验和 Player 本地下载；真实账号与设备验收边界见插件说明。
 
 Player 源码位于 [OhMyCine](https://github.com/yuanjing-hash/OhMyCine)，Server 源码位于 [OhMyCine-Server](https://github.com/yuanjing-hash/OhMyCine-Server)。插件只在 Server 的 WASM 沙箱中运行，Player 不安装或执行插件代码。
 

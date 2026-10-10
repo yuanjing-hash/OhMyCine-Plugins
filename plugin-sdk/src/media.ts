@@ -169,6 +169,20 @@ export interface DownloadPlan {
   merge?: { kind: 'dash-av', videoAssetId: string, audioAssetId: string }
 }
 
+/** Provider-authorized Player-local download. All assets are Host-owned references. */
+export interface OfflineDownloadPlan {
+  version: 1
+  workId: string
+  segmentId: string
+  versionId: string
+  variantId: string
+  suggestedFileName: string
+  format: 'progressive' | 'hls' | 'dash'
+  assets: readonly DownloadAsset[]
+  /** Unix seconds; the Host may shorten this to its asset lifetime. */
+  expiresAt?: number
+}
+
 export interface ProviderMetadataSnapshot {
   version: 1
   workId: string
