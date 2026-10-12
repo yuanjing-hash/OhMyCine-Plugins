@@ -1,0 +1,12 @@
+{
+  "inlist": {
+    "i": ["98765", "43210"],
+    "title": ["示例资源 S01E01 2160p", "另一个合成资源"],
+    "k": [4, 4],
+    "size": ["4.6 GB", "700 MB"],
+    "seeds": [18, 1205],
+    "time": ["4月前", "12分钟前"],
+    "fixtureMeta": [0, 0]
+  },
+  "page": {"pages": 17, "fixtureCurrent": 1, "fixtureCount": 418}
+}

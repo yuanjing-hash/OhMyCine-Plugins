@@ -13,6 +13,9 @@ use time::{
 };
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+#[cfg(test)]
+mod search_tests;
+
 const HOST_HTTP: i32 = 1;
 const HOST_NOW: i32 = 5;
 const HOST_ASSET_REGISTER: i32 = 7;
@@ -21,6 +24,12 @@ const HOST_CONFIG_GET: i32 = 9;
 const HOST_BUFFER_BYTES: usize = 4 * 1024 * 1024;
 const SESSION_SCOPE: &str = "guolia.session";
 const USER_AGENT: &str = "Mozilla/5.0 OhMyCine/0.1 GuoliaPlugin/0.1";
+const MAX_SEARCH_ITEMS: usize = 200;
+const MAX_RESOURCE_ID_BYTES: usize = 128;
+const MAX_TITLE_BYTES: usize = 512;
+const MAX_TAG_BYTES: usize = 64;
+const MAX_RESOURCE_BYTES: i64 = 8_i64 << 40;
+const MAX_SEEDERS: i32 = 1_000_000;
 
 #[cfg(target_arch = "wasm32")]
 #[link(wasm_import_module = "ohmycine")]
@@ -247,9 +256,8 @@ fn resource_search(request: ResourceSearchRequest) -> Result<Value, PluginError>
         ));
     }
 
-    // The current site serves the browser search as an HTML table. Keep the
-    // historical JSON endpoint as a fast compatibility path, but fall back to
-    // the real browser route when the endpoint is absent or returns HTML.
+    // Prefer the JSON search representation; retain the historical browser
+    // table/data fallback when the endpoint is absent or returns HTML.
     let html_url = format!(
         "{origin}/search?q={}&type=4&mode=1&page={page}",
         urlencoding::encode(request.query.trim())
@@ -364,9 +372,27 @@ fn relative_age_seconds(raw: &str) -> Option<i64> {
 }
 
 fn parse_json_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
-    let payload: Value = serde_json::from_slice(body).ok()?;
-    if browser_verification_required(&payload) || !search_payload_shape(&payload) {
+    if body.len() > HOST_BUFFER_BYTES {
         return None;
+    }
+    let payload: Value = serde_json::from_slice(body).ok()?;
+    parse_search_payload(&payload, page)
+}
+
+fn parse_search_payload(payload: &Value, page: i32) -> Option<ResourceSearchResponse> {
+    if browser_verification_required(payload) || !search_payload_shape(payload) {
+        return None;
+    }
+    if payload.get("inlist").is_some()
+        && payload
+            .get("data")
+            .and_then(|data| data.get("inlist"))
+            .is_some()
+    {
+        return None;
+    }
+    if payload.get("inlist").is_some_and(Value::is_object) {
+        return parse_column_search(payload, page);
     }
     let rows = payload
         .get("inlist")
@@ -378,30 +404,22 @@ fn parse_json_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
                 .and_then(Value::as_array)
         })?;
     let mut items = Vec::new();
-    for row in rows.iter().take(200) {
+    for row in rows.iter().take(MAX_SEARCH_ITEMS) {
         let id = value_string(row, &["i", "id"]);
         let title = value_string(row, &["title", "name"]);
-        if id.is_empty() || title.is_empty() {
-            continue;
-        }
-        let updated = value_string(row, &["time", "updatedAt"]);
-        items.push(ResourceSearchItem {
+        if let Some(item) = search_item(
             id,
-            title,
-            size_bytes: parse_size(&value_string(row, &["size"])),
-            seeders: value_i32(row, &["seeds", "seeders"]).max(0),
-            updated_at: if updated.is_empty() {
-                None
-            } else {
-                Some(updated)
-            },
-            tags: value_string(row, &["k", "type"])
-                .split_whitespace()
-                .filter(|v| !v.is_empty())
-                .map(str::to_owned)
-                .take(8)
-                .collect(),
-        });
+            &title,
+            row.get("size"),
+            row.get("seeds").or_else(|| row.get("seeders")),
+            row.get("time").or_else(|| row.get("updatedAt")),
+            row.get("k").or_else(|| row.get("type")),
+        ) {
+            items.push(item);
+        }
+    }
+    if !rows.is_empty() && items.is_empty() {
+        return None;
     }
     let has_next = payload
         .get("footer")
@@ -416,15 +434,165 @@ fn parse_json_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
     })
 }
 
+fn parse_column_search(payload: &Value, page: i32) -> Option<ResourceSearchResponse> {
+    // Authenticated /res/search was observed with these exact root.inlist
+    // parallel columns and root.page.pages. Do not recursively hunt for arrays
+    // in unknown wrappers or infer pagination from the returned item count.
+    let list = payload.get("inlist")?.as_object()?;
+    let columns = ["i", "title", "k", "size", "seeds", "time"]
+        .iter()
+        .map(|name| list.get(*name)?.as_array())
+        .collect::<Option<Vec<_>>>()?;
+    let count = columns[0].len();
+    if count > MAX_SEARCH_ITEMS || columns.iter().any(|column| column.len() != count) {
+        return None;
+    }
+    for index in [0, 1, 3, 5] {
+        if !columns[index].iter().all(Value::is_string) {
+            return None;
+        }
+    }
+    if !columns[4].iter().all(Value::is_number)
+        || !columns[2]
+            .iter()
+            .all(|value| value.is_number() || value.is_string())
+    {
+        return None;
+    }
+    let pages = payload.get("page")?.as_object()?.get("pages")?.as_u64()?;
+    if !(1..=10_000).contains(&page) || pages > 10_000 || count > 0 && pages < page as u64 {
+        return None;
+    }
+    let has_next = (page as u64) < pages;
+    if let Some(next) = payload.get("footer").and_then(|footer| footer.get("next")) {
+        if next.as_bool()? != has_next {
+            return None;
+        }
+    }
+    let mut items = Vec::with_capacity(count);
+    for (index, id) in columns[0].iter().enumerate() {
+        if let Some(item) = search_item(
+            id.as_str()?.to_owned(),
+            columns[1][index].as_str()?,
+            Some(&columns[3][index]),
+            Some(&columns[4][index]),
+            Some(&columns[5][index]),
+            Some(&columns[2][index]),
+        ) {
+            items.push(item);
+        }
+    }
+    if count > 0 && items.is_empty() {
+        return None;
+    }
+    Some(ResourceSearchResponse {
+        items,
+        page,
+        has_next,
+    })
+}
+
+// Titles/tags are display values, so whitespace and UTF-8-safe shortening are
+// appropriate. Opaque resource IDs and numeric facts must never be shortened,
+// wrapped or clamped into another resource's identity/size/seeder count.
+fn search_display_text(raw: &str, maximum_bytes: usize) -> String {
+    let clean = raw
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect::<String>();
+    let mut clean = normalized_text(std::iter::once(clean.as_str()));
+    let mut end = clean.len().min(maximum_bytes);
+    while !clean.is_char_boundary(end) {
+        end -= 1;
+    }
+    clean.truncate(end);
+    clean.trim_end().to_owned()
+}
+
+fn search_item(
+    id: String,
+    title: &str,
+    size: Option<&Value>,
+    seeders: Option<&Value>,
+    updated: Option<&Value>,
+    tags: Option<&Value>,
+) -> Option<ResourceSearchItem> {
+    if !valid_resource_id(&id) {
+        return None;
+    }
+    let title = search_display_text(title, MAX_TITLE_BYTES);
+    if title.is_empty() {
+        return None;
+    }
+    let size_bytes = match size {
+        None | Some(Value::Null) => 0,
+        Some(Value::String(value)) => parse_size(value)?,
+        Some(value) => value.as_i64()?,
+    };
+    if !(0..=MAX_RESOURCE_BYTES).contains(&size_bytes) {
+        return None;
+    }
+    let seeders = match seeders {
+        None | Some(Value::Null) => 0,
+        Some(Value::String(value)) => {
+            let value = value.trim().replace(',', "");
+            if value.is_empty() || !value.bytes().all(|character| character.is_ascii_digit()) {
+                return None;
+            }
+            value.parse::<i64>().ok()?
+        }
+        Some(value) => value.as_i64()?,
+    };
+    let seeders = i32::try_from(seeders).ok()?;
+    if !(0..=MAX_SEEDERS).contains(&seeders) {
+        return None;
+    }
+    let updated_at = updated
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned);
+    let tags = tags
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .split_whitespace()
+        .map(|value| search_display_text(value, MAX_TAG_BYTES))
+        .filter(|value| !value.is_empty())
+        .take(8)
+        .collect();
+    Some(ResourceSearchItem {
+        id,
+        title,
+        size_bytes,
+        seeders,
+        updated_at,
+        tags,
+    })
+}
+
 fn parse_html_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
+    if body.len() > HOST_BUFFER_BYTES {
+        return None;
+    }
     let html = std::str::from_utf8(body).ok()?;
     let document = Html::parse_document(html);
+    match search_bootstrap(&document) {
+        Ok(Some(payload)) => return parse_search_payload(&payload, page),
+        Err(()) => return None,
+        Ok(None) => {}
+    }
     let table_selector = Selector::parse("table").ok()?;
     let row_selector = Selector::parse("tr").ok()?;
     let cell_selector = Selector::parse("th, td").ok()?;
     let link_selector = Selector::parse("a[href]").ok()?;
 
     let mut recognized_table = false;
+    let mut candidate_rows = 0;
     let mut items = Vec::new();
     for table in document.select(&table_selector) {
         let mut columns = None;
@@ -447,7 +615,8 @@ fn parse_html_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
             let Some((title_index, size_index, seeders_index, updated_index)) = columns else {
                 continue;
             };
-            if items.len() >= 200
+            candidate_rows += 1;
+            if items.len() >= MAX_SEARCH_ITEMS
                 || [title_index, size_index, seeders_index, updated_index]
                     .into_iter()
                     .any(|index| index >= cells.len())
@@ -470,17 +639,22 @@ fn parse_html_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
                 continue;
             }
             let updated = normalized_text(cells[updated_index].text());
-            items.push(ResourceSearchItem {
+            let size = Value::String(normalized_text(cells[size_index].text()));
+            let seeders = Value::String(normalized_text(cells[seeders_index].text()));
+            let updated = Value::String(updated);
+            if let Some(item) = search_item(
                 id,
-                title,
-                size_bytes: parse_size(&normalized_text(cells[size_index].text())),
-                seeders: parse_non_negative_i32(&normalized_text(cells[seeders_index].text())),
-                updated_at: (!updated.is_empty()).then_some(updated),
-                tags: Vec::new(),
-            });
+                &title,
+                Some(&size),
+                Some(&seeders),
+                Some(&updated),
+                None,
+            ) {
+                items.push(item);
+            }
         }
     }
-    if !recognized_table {
+    if !recognized_table || candidate_rows > 0 && items.is_empty() {
         return None;
     }
     let has_next = document.select(&link_selector).any(|link| {
@@ -493,6 +667,75 @@ fn parse_html_search(body: &[u8], page: i32) -> Option<ResourceSearchResponse> {
         page,
         has_next,
     })
+}
+
+// The provider emits a leading sequence of _obj.<name>=JSON; assignments.
+// Read only JSON literals in executable inline scripts; the remaining program
+// is never evaluated. A search mention in a string, comment or conditional is
+// not a search representation. Multiple assignments must not choose a winner.
+fn search_bootstrap(document: &Html) -> Result<Option<Value>, ()> {
+    let selector = Selector::parse("script:not([src])").map_err(|_| ())?;
+    let mut result = None;
+    for (index, script) in document.select(&selector).enumerate() {
+        if index >= 128 {
+            return Err(());
+        }
+        if !matches!(
+            script.value().attr("type").unwrap_or(""),
+            "" | "text/javascript" | "application/javascript"
+        ) || script
+            .ancestors()
+            .filter_map(|node| node.value().as_element())
+            .any(|element| matches!(element.name(), "template" | "noscript"))
+        {
+            continue;
+        }
+        let source = script.text().collect::<String>();
+        let mut remaining = source.trim_start();
+        let mut found_search = false;
+        for _ in 0..64 {
+            let Some(after_prefix) = remaining.strip_prefix("_obj.") else {
+                break;
+            };
+            let name_end = after_prefix
+                .bytes()
+                .position(|character| !character.is_ascii_alphanumeric() && character != b'_')
+                .unwrap_or(after_prefix.len());
+            let name = &after_prefix[..name_end];
+            if name.is_empty() || name.len() > 64 {
+                break;
+            }
+            let Some(value) = after_prefix[name_end..].trim_start().strip_prefix('=') else {
+                break;
+            };
+            let value = value.trim_start();
+            let mut stream = serde_json::Deserializer::from_str(value).into_iter::<Value>();
+            let Some(Ok(payload)) = stream.next() else {
+                if name == "search" || remaining.contains("_obj.search") {
+                    return Err(());
+                }
+                break;
+            };
+            let Some(rest) = value[stream.byte_offset()..].trim_start().strip_prefix(';') else {
+                if name == "search" || remaining.contains("_obj.search") {
+                    return Err(());
+                }
+                break;
+            };
+            if name == "search" {
+                if result.is_some() {
+                    return Err(());
+                }
+                result = Some(payload);
+                found_search = true;
+            }
+            remaining = rest.trim_start();
+        }
+        if remaining.contains("_obj.search") && found_search {
+            return Err(());
+        }
+    }
+    Ok(result)
 }
 
 fn search_columns(headings: &[String]) -> Option<(usize, usize, usize, usize)> {
@@ -530,24 +773,18 @@ fn resource_id_from_href(raw: &str) -> Option<String> {
         return None;
     }
     let id = segments[1].trim();
-    if id.is_empty()
-        || id.len() > 128
-        || !id
-            .bytes()
-            .all(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_'))
-    {
+    if !valid_resource_id(id) {
         return None;
     }
     Some(id.to_owned())
 }
 
-fn parse_non_negative_i32(raw: &str) -> i32 {
-    let digits = raw
-        .chars()
-        .filter(|character| character.is_ascii_digit())
-        .take(10)
-        .collect::<String>();
-    digits.parse::<i32>().unwrap_or(0).max(0)
+fn valid_resource_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= MAX_RESOURCE_ID_BYTES
+        && id
+            .bytes()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, b'-' | b'_'))
 }
 
 fn link_targets_later_page(raw: &str, current_page: i32) -> bool {
@@ -1091,7 +1328,9 @@ fn auth_required_response(status: i32, body: &[u8]) -> bool {
 }
 
 fn search_payload_shape(payload: &Value) -> bool {
-    payload.get("inlist").is_some_and(Value::is_array)
+    payload
+        .get("inlist")
+        .is_some_and(|value| value.is_array() || value.is_object())
         || payload
             .get("data")
             .and_then(|data| data.get("inlist"))
@@ -1165,20 +1404,7 @@ fn value_string(value: &Value, keys: &[&str]) -> String {
         })
         .unwrap_or_default()
 }
-fn value_i32(value: &Value, keys: &[&str]) -> i32 {
-    keys.iter()
-        .find_map(|key| {
-            value
-                .get(*key)
-                .and_then(|v| {
-                    v.as_i64()
-                        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
-                })
-                .map(|v| v as i32)
-        })
-        .unwrap_or(0)
-}
-fn parse_size(raw: &str) -> i64 {
+fn parse_size(raw: &str) -> Option<i64> {
     let compact = raw.replace(',', "").trim().to_owned();
     let split_at = compact
         .char_indices()
@@ -1189,22 +1415,17 @@ fn parse_size(raw: &str) -> i64 {
     let value = number
         .parse::<f64>()
         .ok()
-        .filter(|value| value.is_finite() && *value >= 0.0)
-        .unwrap_or(0.0);
+        .filter(|value| value.is_finite() && *value >= 0.0)?;
     let multiplier = match suffix.trim().to_ascii_uppercase().as_str() {
         "K" | "KB" | "KIB" => 1024.0,
         "M" | "MB" | "MIB" => 1024.0 * 1024.0,
         "G" | "GB" | "GIB" => 1024.0 * 1024.0 * 1024.0,
         "T" | "TB" | "TIB" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
         "" | "B" => 1.0,
-        _ => return 0,
+        _ => return None,
     };
     let bytes = value * multiplier;
-    if bytes >= i64::MAX as f64 {
-        i64::MAX
-    } else {
-        bytes as i64
-    }
+    (bytes.is_finite() && bytes <= MAX_RESOURCE_BYTES as f64).then_some(bytes as i64)
 }
 fn extract_magnet(html: &str) -> Option<String> {
     let marker = "magnet:?xt=urn:btih:";
@@ -1298,10 +1519,10 @@ mod tests {
 
     #[test]
     fn parses_compact_site_sizes() {
-        assert_eq!(parse_size("4.6GB"), 4_939_212_390);
-        assert_eq!(parse_size("700 MB"), 734_003_200);
-        assert_eq!(parse_size("1.5 GiB"), 1_610_612_736);
-        assert_eq!(parse_size("unknown"), 0);
+        assert_eq!(parse_size("4.6GB"), Some(4_939_212_390));
+        assert_eq!(parse_size("700 MB"), Some(734_003_200));
+        assert_eq!(parse_size("1.5 GiB"), Some(1_610_612_736));
+        assert_eq!(parse_size("unknown"), None);
     }
 
     #[test]
