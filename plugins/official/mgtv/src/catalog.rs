@@ -82,6 +82,90 @@ fn config(connection: &str, channel: &str) -> Result<Value, Error> {
     }
     Ok(data)
 }
+fn category_nodes(channel: &str, fields: &[Value]) -> Result<Vec<Value>, Error> {
+    let mut nodes = vec![
+        json!({"id":format!("all-{channel}"),"title":"全部","kind":"feed","routeKey":format!("catalog:{channel}"),"refreshable":true}),
+    ];
+    // Official kind is the content taxonomy for every current channel. Other
+    // filter dimensions must not become category directories or substitutes.
+    let mut content_fields = fields
+        .iter()
+        .filter(|field| field.get("eName").and_then(Value::as_str) == Some("kind"));
+    if let Some(field) = content_fields.next() {
+        if content_fields.next().is_some() {
+            return Err(Error::response());
+        }
+        let status = number(field.get("status")).ok_or_else(Error::response)?;
+        if status == 1 {
+            nodes.extend(tag_nodes(channel, "kind", field, false)?);
+        }
+    }
+    if nodes.len() > 100 {
+        return Err(Error::response());
+    }
+    Ok(nodes)
+}
+fn tag_nodes(
+    channel: &str,
+    field_name: &str,
+    field: &Value,
+    include_all: bool,
+) -> Result<Vec<Value>, Error> {
+    let tags = array(field, "items")?;
+    if tags.len() > 100 {
+        return Err(Error::response());
+    }
+    let mut nodes = Vec::new();
+    let mut seen = HashSet::new();
+    for tag in tags {
+        let status = number(tag.get("status")).ok_or_else(Error::response)?;
+        if status != 1 {
+            continue;
+        }
+        let id = string(tag, "tagId")?;
+        let title = string(tag, "tagName")?;
+        let route = format!("catalog:{channel}:{field_name}:{id}");
+        if id.len() > 124
+            || !id.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+            || title.len() > 256
+            || route.len() > 256
+            || !seen.insert(id)
+        {
+            return Err(Error::response());
+        }
+        // Keep the original unfiltered route as the sole visible All entry;
+        // old filter tokens still include the provider's a1 tag normally.
+        if include_all || id != "a1" {
+            nodes.push(json!({"id":format!("tag-{id}"),"title":title,"kind":"feed","routeKey":route,"refreshable":true}));
+        }
+    }
+    Ok(nodes)
+}
+fn navigation_parent(key: &str) -> Result<(&str, Option<&str>), Error> {
+    let parts = key.split(':').collect::<Vec<_>>();
+    if parts.first() != Some(&"category")
+        || !(parts.len() == 2 || parts.len() == 4 && parts[2] == "filter")
+    {
+        return Err(Error::request());
+    }
+    let channel = numeric_id(parts[1])?;
+    let field = if parts.len() == 4 {
+        if parts[3].is_empty() || !parts[3].bytes().all(|c| c.is_ascii_alphanumeric()) {
+            return Err(Error::request());
+        }
+        Some(parts[3])
+    } else {
+        None
+    };
+    Ok((channel, field))
+}
+fn filter_nodes(channel: &str, fields: &[Value], name: &str) -> Result<Vec<Value>, Error> {
+    let field = fields
+        .iter()
+        .find(|field| field.get("eName").and_then(Value::as_str) == Some(name))
+        .ok_or_else(Error::request)?;
+    tag_nodes(channel, name, field, true)
+}
 pub(super) fn navigation(request: Navigation) -> Result<Value, Error> {
     validate_connection(&request.connection_id)?;
     if request.depth.unwrap_or(0) > 3 {
@@ -98,41 +182,12 @@ pub(super) fn navigation(request: Navigation) -> Result<Value, Error> {
             nodes
         }
         Some(key) => {
-            let parts = key.split(':').collect::<Vec<_>>();
-            if parts.first() != Some(&"category")
-                || !(parts.len() == 2 || parts.len() == 4 && parts[2] == "filter")
-            {
-                return Err(Error::request());
-            }
-            let channel = parts[1];
+            let (channel, filter) = navigation_parent(key)?;
             let data = config(&request.connection_id, channel)?;
             let fields = array(&data, "listItems")?;
-            if parts.len() == 2 {
-                let mut nodes = vec![
-                    json!({"id":format!("all-{channel}"),"title":"全部","kind":"feed","routeKey":format!("catalog:{channel}"),"refreshable":true}),
-                ];
-                for field in fields.iter().filter(|f| number(f.get("status")) == Some(1)) {
-                    let name = string(field, "eName")?;
-                    if !name.bytes().all(|c| c.is_ascii_alphanumeric()) {
-                        return Err(Error::response());
-                    }
-                    nodes.push(json!({"id":format!("filter-{name}"),"title":string(field,"typeName")?,"kind":"branch","nodeKey":format!("category:{channel}:filter:{name}"),"hasChildren":true}));
-                }
-                nodes
-            } else {
-                let field = fields
-                    .iter()
-                    .find(|field| field.get("eName").and_then(Value::as_str) == Some(parts[3]))
-                    .ok_or_else(Error::request)?;
-                let tags = array(field, "items")?;
-                if tags.len() > 100 {
-                    return Err(Error::response());
-                }
-                tags.iter().filter(|tag|number(tag.get("status"))==Some(1)).map(|tag| {
-                    let id=string(tag,"tagId")?;
-                    if !id.bytes().all(|c|c.is_ascii_alphanumeric() || c==b'-') { return Err(Error::response()); }
-                    Ok(json!({"id":format!("tag-{id}"),"title":string(tag,"tagName")?,"kind":"feed","routeKey":format!("catalog:{channel}:{}:{id}",parts[3]),"refreshable":true}))
-                }).collect::<Result<Vec<_>,Error>>()?
+            match filter {
+                None => category_nodes(channel, fields)?,
+                Some(name) => filter_nodes(channel, fields, name)?,
             }
         }
     };
@@ -148,6 +203,51 @@ fn page(cursor: Option<&str>) -> Result<u32, Error> {
             .ok_or_else(Error::request),
     }
 }
+type FeedRoute<'a> = (&'a str, Option<(&'a str, &'a str)>);
+
+fn feed_route(route_key: &str) -> Result<FeedRoute<'_>, Error> {
+    let parts = route_key.split(':').collect::<Vec<_>>();
+    if parts.first() != Some(&"catalog") || !(parts.len() == 2 || parts.len() == 4) {
+        return Err(Error::request());
+    }
+    Ok((
+        numeric_id(parts[1])?,
+        if parts.len() == 4 {
+            Some((parts[2], parts[3]))
+        } else {
+            None
+        },
+    ))
+}
+fn feed_url(
+    channel: &str,
+    filter: Option<(&str, &str)>,
+    data: &Value,
+    pn: u32,
+) -> Result<String, Error> {
+    let page_string = pn.to_string();
+    let mut params = vec![
+        ("platform", "pcweb"),
+        ("channelId", channel),
+        ("pn", page_string.as_str()),
+        ("pc", "40"),
+        ("hudong", "1"),
+        ("_support", "10000000"),
+    ];
+    if let Some((name, id)) = filter {
+        let field = array(data, "listItems")?
+            .iter()
+            .find(|f| f.get("eName").and_then(Value::as_str) == Some(name))
+            .ok_or_else(Error::request)?;
+        if !array(field, "items")?.iter().any(|t| {
+            t.get("tagId").and_then(Value::as_str) == Some(id) && number(t.get("status")) == Some(1)
+        }) {
+            return Err(Error::request());
+        }
+        params.push((name, id));
+    }
+    query("https://pianku.api.mgtv.com/rider/list/pcweb/v3", &params)
+}
 pub(super) fn feed(request: Feed) -> Result<Value, Error> {
     validate_connection(&request.connection_id)?;
     if request
@@ -157,37 +257,12 @@ pub(super) fn feed(request: Feed) -> Result<Value, Error> {
     {
         return Err(Error::request());
     }
-    let parts = request.route_key.split(':').collect::<Vec<_>>();
-    if parts.first() != Some(&"catalog") || !(parts.len() == 2 || parts.len() == 4) {
-        return Err(Error::request());
-    }
-    let data = config(&request.connection_id, parts[1])?;
+    let (channel, filter) = feed_route(&request.route_key)?;
+    let data = config(&request.connection_id, channel)?;
     let pn = page(request.cursor.as_deref())?;
-    let page_string = pn.to_string();
-    let mut params = vec![
-        ("platform", "pcweb"),
-        ("channelId", parts[1]),
-        ("pn", page_string.as_str()),
-        ("pc", "40"),
-        ("hudong", "1"),
-        ("_support", "10000000"),
-    ];
-    if parts.len() == 4 {
-        let field = array(&data, "listItems")?
-            .iter()
-            .find(|f| f.get("eName").and_then(Value::as_str) == Some(parts[2]))
-            .ok_or_else(Error::request)?;
-        if !array(field, "items")?.iter().any(|t| {
-            t.get("tagId").and_then(Value::as_str) == Some(parts[3])
-                && number(t.get("status")) == Some(1)
-        }) {
-            return Err(Error::request());
-        }
-        params.push((parts[2], parts[3]));
-    }
     let result = get(
         &request.connection_id,
-        &query("https://pianku.api.mgtv.com/rider/list/pcweb/v3", &params)?,
+        &feed_url(channel, filter, &data, pn)?,
         false,
     )?;
     let rows = array(&result, "hitDocs")?;
@@ -588,6 +663,305 @@ mod tests {
             .unwrap(),
         )
         .unwrap()
+    }
+    #[test]
+    fn official_drama_children_flatten_kind_with_one_all_feed() {
+        let data = fixture("channel.json")["data"].clone();
+        let nodes = category_nodes("2", array(&data, "listItems").unwrap()).unwrap();
+        assert_eq!(nodes.len(), 25);
+        assert_eq!(nodes[0]["id"], "all-2");
+        assert_eq!(nodes[0]["routeKey"], "catalog:2");
+        assert_eq!(nodes[1]["routeKey"], "catalog:2:kind:3094");
+        assert_eq!(nodes[1]["title"], "爱情");
+        assert_eq!(
+            nodes.iter().filter(|node| node["title"] == "全部").count(),
+            1
+        );
+        assert!(nodes.iter().all(|node| node["kind"] == "feed"
+            && node["refreshable"] == true
+            && node.get("nodeKey").is_none()
+            && node.get("hasChildren").is_none()));
+        let kind = &data["listItems"][0];
+        let expected = kind["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|tag| tag["tagId"] != "a1")
+            .map(|tag| {
+                (
+                    tag["tagId"].as_str().unwrap(),
+                    tag["tagName"].as_str().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        let actual = nodes[1..]
+            .iter()
+            .map(|node| {
+                (
+                    node["id"].as_str().unwrap().strip_prefix("tag-").unwrap(),
+                    node["title"].as_str().unwrap(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected);
+    }
+    #[test]
+    fn all_seven_official_channels_use_kind_identity_and_order() {
+        // Reduced synthetic configs use the first public kind tag observed for
+        // each channel on 2026-10-12. They are not complete provider responses.
+        let samples = [
+            ("1", "8", "音乐"),
+            ("2", "3094", "爱情"),
+            ("3", "175", "爱情"),
+            ("10", "184", "儿歌"),
+            ("50", "84", "恋爱"),
+            ("51", "98", "文化"),
+            ("115", "134", "幼儿"),
+        ];
+        let channels = fixture("channels.json")["data"].clone();
+        let mut channels = channels.as_array().unwrap().clone();
+        channels.retain(|row| number(row.get("status")) == Some(1));
+        channels.sort_by_key(|row| number(row.get("rank")).unwrap());
+        assert_eq!(channels.len(), samples.len());
+        for (row, (channel, tag_id, title)) in channels.iter().zip(samples) {
+            assert_eq!(row["channelId"], channel);
+            // The first field and its translated name are deliberately
+            // unrelated to the content taxonomy. Only eName=kind selects it.
+            let fields = vec![
+                json!({"eName":"sort","typeName":"类型","status":1,"items":[{"tagId":"c1","tagName":"最新","status":1}]}),
+                json!({"eName":"kind","typeName":"内容","status":1,"items":[
+                    {"tagId":"a1","tagName":"全部","status":1},
+                    {"tagId":tag_id,"tagName":title,"status":1},
+                    {"tagId":"hidden","tagName":"不显示","status":0},
+                    {"tagId":"last","tagName":"最后一项","status":1}
+                ]}),
+                json!({"eName":"year","status":1,"items":[{"tagId":"2026","tagName":"2026年","status":1}]}),
+            ];
+            let nodes = category_nodes(channel, &fields).unwrap();
+            assert_eq!(nodes.len(), 3);
+            assert_eq!(nodes[0]["id"], format!("all-{channel}"));
+            assert_eq!(nodes[0]["routeKey"], format!("catalog:{channel}"));
+            assert_eq!(nodes[1]["id"], format!("tag-{tag_id}"));
+            assert_eq!(nodes[1]["title"], title);
+            assert_eq!(
+                nodes[1]["routeKey"],
+                format!("catalog:{channel}:kind:{tag_id}")
+            );
+            assert_eq!(nodes[2]["id"], "tag-last");
+            assert!(nodes.iter().all(|node| node["kind"] == "feed"));
+        }
+    }
+    #[test]
+    fn missing_disabled_or_empty_kind_keeps_only_unfiltered_all() {
+        let other =
+            json!({"eName":"sort","status":1,"items":[{"tagId":"c1","tagName":"最新","status":1}]});
+        let variants = [
+            vec![],
+            vec![other.clone()],
+            vec![other.clone(), json!({"eName":"kind","status":0})],
+            vec![other.clone(), json!({"eName":"kind","status":1,"items":[]})],
+            vec![
+                other,
+                json!({"eName":"kind","status":1,"items":[
+                    {"tagId":"a1","tagName":"全部","status":1},
+                    {"tagId":"hidden","tagName":"不显示","status":0}
+                ]}),
+            ],
+        ];
+        for fields in variants {
+            let nodes = category_nodes("1", &fields).unwrap();
+            assert_eq!(
+                nodes,
+                vec![
+                    json!({"id":"all-1","title":"全部","kind":"feed","routeKey":"catalog:1","refreshable":true})
+                ]
+            );
+        }
+    }
+    #[test]
+    fn enabled_kind_rejects_malformed_tags_and_duplicate_identities() {
+        for items in [Value::Null, json!({}), json!("tags"), json!([true])] {
+            let fields = vec![json!({"eName":"kind","status":1,"items":items})];
+            assert_eq!(
+                category_nodes("1", &fields).unwrap_err().code,
+                "invalid-response"
+            );
+        }
+        assert!(category_nodes("1", &[json!({"eName":"kind","status":1})]).is_err());
+        for status in [Value::Null, json!(true), json!("unknown")] {
+            assert!(
+                category_nodes("1", &[json!({"eName":"kind","status":status,"items":[]})]).is_err()
+            );
+            let field = json!({"eName":"kind","status":1,"items":[{"tagId":"8","tagName":"类型","status":status}]});
+            assert!(category_nodes("1", &[field]).is_err());
+        }
+        for id in [
+            "",
+            "has:colon",
+            "../path",
+            "https://host",
+            "有中文",
+            &"x".repeat(125),
+        ] {
+            let fields = vec![
+                json!({"eName":"kind","status":1,"items":[{"tagId":id,"tagName":"类型","status":1}]}),
+            ];
+            assert_eq!(
+                category_nodes("1", &fields).unwrap_err().code,
+                "invalid-response"
+            );
+        }
+        for title in ["", "bad\nlabel", &"x".repeat(257)] {
+            let fields = vec![
+                json!({"eName":"kind","status":1,"items":[{"tagId":"8","tagName":title,"status":1}]}),
+            ];
+            assert_eq!(
+                category_nodes("1", &fields).unwrap_err().code,
+                "invalid-response"
+            );
+        }
+        for id in ["8", "a1"] {
+            let tag = json!({"tagId":id,"tagName":"类型","status":1});
+            let fields = vec![json!({"eName":"kind","status":1,"items":[tag.clone(),tag]})];
+            assert_eq!(
+                category_nodes("1", &fields).unwrap_err().code,
+                "invalid-response"
+            );
+        }
+        let kind = json!({"eName":"kind","status":1,"items":[]});
+        assert!(category_nodes("1", &[kind.clone(), kind]).is_err());
+    }
+    #[test]
+    fn category_node_budget_counts_the_all_entry_without_truncation() {
+        let tags = (1..=99)
+            .map(|id| json!({"tagId":id.to_string(),"tagName":format!("类型{id}"),"status":1}))
+            .collect::<Vec<_>>();
+        let mut field = json!({"eName":"kind","status":1,"items":tags});
+        let nodes = category_nodes("1", &[field.clone()]).unwrap();
+        assert_eq!(nodes.len(), 100);
+        assert_eq!(nodes[99]["routeKey"], "catalog:1:kind:99");
+        field["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"tagId":"100","tagName":"类型100","status":1}));
+        // 100 non-All tags plus our unfiltered All is an invalid 101 nodes.
+        assert_eq!(
+            category_nodes("1", &[field.clone()]).unwrap_err().code,
+            "invalid-response"
+        );
+        // The official a1 sentinel can fill the raw 100-tag bound while the
+        // projected directory still contains exactly 100 accepted nodes.
+        field["items"].as_array_mut().unwrap()[99] =
+            json!({"tagId":"a1","tagName":"全部","status":1});
+        assert_eq!(category_nodes("1", &[field.clone()]).unwrap().len(), 100);
+        field["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"tagId":"101","tagName":"类型101","status":0}));
+        assert!(category_nodes("1", &[field]).is_err());
+    }
+    #[test]
+    fn legacy_filter_tokens_and_stable_leaf_routes_remain_accepted() {
+        let data = fixture("channel.json")["data"].clone();
+        let fields = array(&data, "listItems").unwrap();
+        assert_eq!(navigation_parent("category:2").unwrap(), ("2", None));
+        let flat = category_nodes("2", fields).unwrap();
+        for name in ["kind", "year", "area", "chargeInfo", "sort"] {
+            let key = format!("category:2:filter:{name}");
+            let (channel, filter) = navigation_parent(&key).unwrap();
+            assert_eq!(filter, Some(name));
+            let legacy = filter_nodes(channel, fields, filter.unwrap()).unwrap();
+            assert!(!legacy.is_empty());
+            assert!(legacy.iter().all(|node| node["kind"] == "feed"));
+            if name == "kind" {
+                assert_eq!(legacy[0]["routeKey"], "catalog:2:kind:a1");
+                assert_eq!(legacy[1..], flat[1..]);
+            }
+            let route = legacy.last().unwrap()["routeKey"].as_str().unwrap();
+            let (channel, filter) = feed_route(route).unwrap();
+            let url = Url::parse(&feed_url(channel, filter, &data, 2).unwrap()).unwrap();
+            assert!(url.query_pairs().any(|(key, _)| key == name));
+            assert_eq!(
+                artwork_route(Some(&format!("route:{route}"))).unwrap(),
+                route
+            );
+            assert_eq!(
+                artwork_route(Some(&format!("branch:{key}"))).unwrap(),
+                "catalog:2"
+            );
+        }
+        assert_eq!(
+            filter_nodes("2", fields, "unknown").unwrap_err().code,
+            "invalid-request"
+        );
+        for key in [
+            "category:0",
+            "category:2:kind",
+            "category:2:filter",
+            "category:2:filter:kind:extra",
+            "category:2:filter:",
+            "category:2:filter:bad/name",
+            "channel:2",
+        ] {
+            assert_eq!(navigation_parent(key).unwrap_err().code, "invalid-request");
+        }
+    }
+    #[test]
+    fn flat_kind_feed_keeps_exact_filter_defaults_and_paging_query() {
+        let data = fixture("channel.json")["data"].clone();
+        let nodes = category_nodes("2", array(&data, "listItems").unwrap()).unwrap();
+        let route = nodes[1]["routeKey"].as_str().unwrap();
+        let (channel, filter) = feed_route(route).unwrap();
+        for (cursor, expected_page) in [(None, "1"), (Some("page:2"), "2")] {
+            let pn = page(cursor).unwrap();
+            let url = Url::parse(&feed_url(channel, filter, &data, pn).unwrap()).unwrap();
+            assert_eq!(url.scheme(), "https");
+            assert_eq!(url.host_str(), Some("pianku.api.mgtv.com"));
+            assert_eq!(url.path(), "/rider/list/pcweb/v3");
+            let params = url.query_pairs().collect::<Vec<_>>();
+            let expected = [
+                ("platform", "pcweb"),
+                ("channelId", "2"),
+                ("pn", expected_page),
+                ("pc", "40"),
+                ("hudong", "1"),
+                ("_support", "10000000"),
+                ("kind", "3094"),
+            ];
+            assert_eq!(
+                params
+                    .iter()
+                    .map(|(key, value)| (key.as_ref(), value.as_ref()))
+                    .collect::<Vec<_>>(),
+                expected
+            );
+        }
+        let (channel, filter) = feed_route("catalog:2").unwrap();
+        let all = Url::parse(&feed_url(channel, filter, &data, 1).unwrap()).unwrap();
+        assert_eq!(all.query_pairs().count(), 6);
+        assert!(!all.query_pairs().any(|(key, _)| key == "kind"));
+        for route in [
+            "catalog:0",
+            "catalog:2:kind",
+            "catalog:2:kind:3094:extra",
+            "other:2",
+        ] {
+            assert_eq!(feed_route(route).unwrap_err().code, "invalid-request");
+        }
+        for filter in [Some(("kind", "unknown")), Some(("unknown", "3094"))] {
+            assert_eq!(
+                feed_url("2", filter, &data, 1).unwrap_err().code,
+                "invalid-request"
+            );
+        }
+        let mut disabled = data.clone();
+        disabled["listItems"][0]["items"][1]["status"] = json!(0);
+        assert_eq!(
+            feed_url("2", Some(("kind", "3094")), &disabled, 1)
+                .unwrap_err()
+                .code,
+            "invalid-request"
+        );
     }
     #[test]
     fn real_catalog_and_episodes_preserve_provider_ids() {

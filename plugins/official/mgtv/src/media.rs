@@ -35,6 +35,7 @@ fn stream_url(connection: &str, cid: &str, vid: &str) -> Result<String, Error> {
             ("did", connection),
             ("_support", "10000000"),
             ("allowedRC", "1"),
+            ("vf", "h264,h265,av01"),
         ],
     )
 }
@@ -197,7 +198,16 @@ fn select<'a>(
                         .and_then(Value::as_str)
                         .is_some_and(|v| !v.is_empty())
             })
-            .max_by_key(|(_, row)| number(row.get("videoHeight")).unwrap_or(0)),
+            .reduce(|best, candidate| {
+                // Keep the first available codec at equal resolution.
+                if number(candidate.1.get("videoHeight")).unwrap_or(0)
+                    > number(best.1.get("videoHeight")).unwrap_or(0)
+                {
+                    candidate
+                } else {
+                    best
+                }
+            }),
     }
     .ok_or_else(|| {
         Error::new("permission-denied", "所选芒果清晰度不可用").because("quality-unavailable")
@@ -467,6 +477,177 @@ mod tests {
         )
         .unwrap()
     }
+    fn synthetic_high_quality_data() -> Value {
+        let mut data = fixture("stream-free.json")["data"].clone();
+        // Only the envelope is an observed fixture. These stream rows, numeric
+        // definitions and paths are synthetic; they are not a VIP observation
+        // or an official definition-to-resolution mapping.
+        data["user"]["login"] = json!(true);
+        data["user"]["isvip"] = json!("1");
+        data["stream"] = json!([{
+            "definition":"3", "fileId":"1", "barName":"720P",
+            "videoWidth":"1280", "videoHeight":"720", "ftime":"7560",
+            "needPay":0, "url":"/SYNTHETIC-720", "fileFormat":"HLS-TS",
+            "videoFormat":"H264"
+        }]);
+        data["stream_h265"] = json!([
+            {
+                "definition":"4", "fileId":"2", "barName":"1080P SDR",
+                "videoWidth":"1920", "videoHeight":"1080", "ftime":"7560",
+                "needPay":0, "url":"/SYNTHETIC-1080", "fileFormat":"HLS-FMP4",
+                "videoFormat":"H265"
+            },
+            {
+                "definition":"9", "fileId":"3", "barName":"4K",
+                "videoWidth":"3840", "videoHeight":"2160", "ftime":"7560",
+                "needPay":0, "url":"/SYNTHETIC-2160", "fileFormat":"HLS-FMP4",
+                "videoFormat":"H265"
+            }
+        ]);
+        data["stream_av01"] = json!([{
+            "definition":"9", "fileId":"4", "barName":"4K",
+            "videoWidth":"3840", "videoHeight":"2160", "ftime":"7560",
+            "needPay":0, "url":"/SYNTHETIC-AV1", "fileFormat":"MP4",
+            "videoFormat":"AV1"
+        }]);
+        data
+    }
+    #[test]
+    fn stream_request_declares_supported_codec_groups() {
+        let connection = "00000000-0000-4000-8000-000000000001";
+        let url = Url::parse(&stream_url(connection, "687100", "22025165").unwrap()).unwrap();
+        assert_eq!(url.scheme(), "https");
+        assert_eq!(url.host_str(), Some("pcweb.api.mgtv.com"));
+        assert_eq!(url.path(), "/video/streamList");
+        let query: std::collections::BTreeMap<_, _> = url.query_pairs().collect();
+        assert_eq!(
+            query.get("vf").map(|value| value.as_ref()),
+            Some("h264,h265,av01")
+        );
+        assert_eq!(query.get("cid").map(|value| value.as_ref()), Some("687100"));
+        assert_eq!(
+            query.get("video_id").map(|value| value.as_ref()),
+            Some("22025165")
+        );
+        assert_eq!(
+            query.get("did").map(|value| value.as_ref()),
+            Some(connection)
+        );
+        assert_eq!(
+            query.get("definitionType").map(|value| value.as_ref()),
+            Some("2")
+        );
+    }
+    #[test]
+    fn synthetic_high_quality_rows_remain_selectable_and_keep_exact_variants() {
+        let full = synthetic_high_quality_data();
+        let mut hd = full.clone();
+        hd["stream_h265"] = json!([hd["stream_h265"][0].clone()]);
+        hd["stream_av01"] = json!([]);
+        for (data, expected_id, height) in [(hd, "h265:4:2", 1080), (full, "h265:9:3", 2160)] {
+            complete_entitlement(&data, "687100", "22025165").unwrap();
+            let (id, row, variants) = select(&data, None).unwrap();
+            assert_eq!(id, expected_id);
+            assert_eq!(number(row.get("videoHeight")), Some(height));
+            let selected = variants.iter().find(|variant| variant["id"] == id).unwrap();
+            assert_eq!(selected["available"], true);
+            assert_eq!(selected["height"], height);
+            assert_eq!(selected["videoCodec"], "H265");
+            for (candidate, _) in stream_rows(&data).unwrap() {
+                assert_eq!(select(&data, Some(&candidate)).unwrap().0, candidate);
+            }
+            assert!(!serde_json::to_string(&variants)
+                .unwrap()
+                .contains("SYNTHETIC"));
+        }
+    }
+    #[test]
+    fn default_quality_keeps_first_available_codec_on_equal_height() {
+        let mut data = synthetic_high_quality_data();
+        let mut h264 = data["stream_h265"][1].clone();
+        h264["fileId"] = json!("5");
+        h264["videoFormat"] = json!("H264");
+        h264["fileFormat"] = json!("HLS-TS");
+        data["stream"].as_array_mut().unwrap().push(h264);
+        assert_eq!(select(&data, None).unwrap().0, "h264:9:5");
+        for requested in ["h265:9:3", "av01:9:4"] {
+            assert_eq!(select(&data, Some(requested)).unwrap().0, requested);
+        }
+        data["stream"][1]["needPay"] = json!(1);
+        assert_eq!(select(&data, None).unwrap().0, "h265:9:3");
+        data["stream_h265"][1]["url"] = json!("");
+        assert_eq!(select(&data, None).unwrap().0, "av01:9:4");
+    }
+    #[test]
+    fn high_quality_selection_requires_each_row_to_be_available() {
+        for (key, value) in [
+            ("url", Value::Null),
+            ("url", json!("")),
+            ("needPay", json!(1)),
+            ("needPay", Value::Null),
+            ("fileFormat", json!("DASH")),
+            ("fileFormat", Value::Null),
+        ] {
+            let mut data = synthetic_high_quality_data();
+            data["stream_h265"] = json!([data["stream_h265"][1].clone()]);
+            data["stream_av01"] = json!([]);
+            data["stream_h265"][0][key] = value;
+            let (id, _, variants) = select(&data, None).unwrap();
+            assert_eq!(id, "h264:3:1", "unavailable high quality: {key}");
+            assert_eq!(variants[1]["available"], false);
+            assert_eq!(
+                select(&data, Some("h265:9:3")).unwrap_err().reason,
+                Some("quality-unavailable")
+            );
+            data["stream"][0]["needPay"] = json!(1);
+            assert_eq!(
+                select(&data, None).unwrap_err().reason,
+                Some("quality-unavailable")
+            );
+        }
+    }
+    #[test]
+    fn synthetic_high_qualities_cannot_replace_full_entitlement_or_duration() {
+        for (path, value, reason) in [
+            ("/user/purview", json!(101), "entitlement-required"),
+            ("/user/iplimit", json!(1), "region-restricted"),
+            ("/info/drmFlag", json!(1), "drm-unsupported"),
+            (
+                "/drm/licenseUrl",
+                json!("SYNTHETIC-license"),
+                "drm-unsupported",
+            ),
+        ] {
+            let mut data = synthetic_high_quality_data();
+            *data.pointer_mut(path).unwrap() = value;
+            assert_eq!(
+                complete_entitlement(&data, "687100", "22025165")
+                    .unwrap_err()
+                    .reason,
+                Some(reason)
+            );
+        }
+        let mut preview = synthetic_high_quality_data();
+        preview["info"]["authInfo"] = json!({"pay_info":{"preview_playing":{"components":[{}]}}});
+        assert_eq!(
+            complete_entitlement(&preview, "687100", "22025165")
+                .unwrap_err()
+                .reason,
+            Some("entitlement-required")
+        );
+        let mut incomplete = synthetic_high_quality_data();
+        incomplete["stream_h265"][1]["ftime"] = json!(300);
+        assert_eq!(
+            select(&incomplete, None).unwrap_err().reason,
+            Some("incomplete-stream")
+        );
+        assert_eq!(
+            select(&incomplete, Some("h265:9:3")).unwrap_err().reason,
+            Some("incomplete-stream")
+        );
+        // A failed higher row is not silently replaced by another codec/quality.
+        assert_eq!(select(&incomplete, Some("av01:9:4")).unwrap().0, "av01:9:4");
+    }
     #[test]
     fn real_free_response_grants_only_actual_available_quality() {
         let data = fixture("stream-free.json")["data"].clone();
@@ -517,6 +698,16 @@ mod tests {
         let mut hidden = info.clone();
         hidden["config"]["download"]["downloadDisplay"] = json!(0);
         assert!(download_entitlement(&data, &hidden, "687100", "22025165").is_err());
+        hidden["config"]["download"]
+            .as_object_mut()
+            .unwrap()
+            .remove("downloadDisplay");
+        assert_eq!(
+            download_entitlement(&data, &hidden, "687100", "22025165")
+                .unwrap_err()
+                .reason,
+            Some("download-unavailable")
+        );
         let preview = fixture("stream-preview.json")["data"].clone();
         assert!(download_entitlement(&preview, &info, "687100", "22025165").is_err());
         let mut drm = data.clone();
