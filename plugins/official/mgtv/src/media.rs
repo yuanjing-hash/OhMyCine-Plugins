@@ -151,14 +151,41 @@ fn supported_stream(row: &Value) -> bool {
         Some("HLS-TS" | "HLS-FMP4" | "MP4")
     )
 }
-fn variant(id: &str, row: &Value, entitled: bool) -> Result<Value, Error> {
-    let available = entitled
-        && number(row.get("needPay")) == Some(0)
+fn quality_flag(value: Option<&Value>) -> Option<bool> {
+    match value? {
+        Value::Number(value) => match value.as_u64()? {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        },
+        Value::String(value) => match value.as_str() {
+            "0" => Some(false),
+            "1" => Some(true),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+fn quality_available(data: &Value, row: &Value) -> bool {
+    // Official needPay marks a member tier, not an unconditional refusal. Only
+    // this fresh video's response may establish membership for that tier; the
+    // saved account summary never grants item or quality access.
+    let member = data.pointer("/user/login").and_then(Value::as_bool) == Some(true)
+        && quality_flag(data.pointer("/user/isvip")) == Some(true);
+    let tier_allowed = match quality_flag(row.get("needPay")) {
+        Some(false) => true,
+        Some(true) => member,
+        _ => false,
+    };
+    tier_allowed
         && row
             .get("url")
             .and_then(Value::as_str)
             .is_some_and(|v| !v.is_empty())
-        && supported_stream(row);
+        && supported_stream(row)
+}
+fn variant(data: &Value, id: &str, row: &Value, entitled: bool) -> Result<Value, Error> {
+    let available = entitled && quality_available(data, row);
     let label = string(row, "barName")?;
     let mut result = json!({"id":id,"label":label,"available":available,
         "width":number(row.get("videoWidth")),"height":number(row.get("videoHeight")),
@@ -184,20 +211,13 @@ fn select<'a>(
     let rows = stream_rows(data)?;
     let variants = rows
         .iter()
-        .map(|(id, row)| variant(id, row, true))
+        .map(|(id, row)| variant(data, id, row, true))
         .collect::<Result<Vec<_>, _>>()?;
     let selected = match requested {
         Some(id) => rows.iter().find(|(candidate, _)| candidate == id),
         None => rows
             .iter()
-            .filter(|(_, row)| {
-                number(row.get("needPay")) == Some(0)
-                    && supported_stream(row)
-                    && row
-                        .get("url")
-                        .and_then(Value::as_str)
-                        .is_some_and(|v| !v.is_empty())
-            })
+            .filter(|(_, row)| quality_available(data, row))
             .reduce(|best, candidate| {
                 // Keep the first available codec at equal resolution.
                 if number(candidate.1.get("videoHeight")).unwrap_or(0)
@@ -212,14 +232,7 @@ fn select<'a>(
     .ok_or_else(|| {
         Error::new("permission-denied", "所选芒果清晰度不可用").because("quality-unavailable")
     })?;
-    if number(selected.1.get("needPay")) != Some(0)
-        || !supported_stream(selected.1)
-        || selected
-            .1
-            .get("url")
-            .and_then(Value::as_str)
-            .is_none_or(str::is_empty)
-    {
+    if !quality_available(data, selected.1) {
         return Err(
             Error::new("permission-denied", "当前账号无所选清晰度的完整权益")
                 .because("quality-unavailable"),
@@ -494,20 +507,20 @@ mod tests {
             {
                 "definition":"4", "fileId":"2", "barName":"1080P SDR",
                 "videoWidth":"1920", "videoHeight":"1080", "ftime":"7560",
-                "needPay":0, "url":"/SYNTHETIC-1080", "fileFormat":"HLS-FMP4",
+                "needPay":1, "url":"/SYNTHETIC-1080", "fileFormat":"HLS-FMP4",
                 "videoFormat":"H265"
             },
             {
                 "definition":"9", "fileId":"3", "barName":"4K",
                 "videoWidth":"3840", "videoHeight":"2160", "ftime":"7560",
-                "needPay":0, "url":"/SYNTHETIC-2160", "fileFormat":"HLS-FMP4",
+                "needPay":1, "url":"/SYNTHETIC-2160", "fileFormat":"HLS-FMP4",
                 "videoFormat":"H265"
             }
         ]);
         data["stream_av01"] = json!([{
             "definition":"9", "fileId":"4", "barName":"4K",
             "videoWidth":"3840", "videoHeight":"2160", "ftime":"7560",
-            "needPay":0, "url":"/SYNTHETIC-AV1", "fileFormat":"MP4",
+            "needPay":1, "url":"/SYNTHETIC-AV1", "fileFormat":"MP4",
             "videoFormat":"AV1"
         }]);
         data
@@ -539,7 +552,7 @@ mod tests {
         );
     }
     #[test]
-    fn synthetic_high_quality_rows_remain_selectable_and_keep_exact_variants() {
+    fn fresh_member_tiers_select_high_qualities_and_keep_exact_variants() {
         let full = synthetic_high_quality_data();
         let mut hd = full.clone();
         hd["stream_h265"] = json!([hd["stream_h265"][0].clone()]);
@@ -562,6 +575,87 @@ mod tests {
         }
     }
     #[test]
+    fn member_quality_supports_only_known_numeric_and_string_member_flags() {
+        for member in [json!(1), json!("1")] {
+            for tier in [json!(1), json!("1")] {
+                let mut data = synthetic_high_quality_data();
+                data["user"]["isvip"] = member.clone();
+                data["stream_h265"][1]["needPay"] = tier.clone();
+                assert_eq!(select(&data, None).unwrap().0, "h265:9:3");
+                assert_eq!(select(&data, Some("h265:9:3")).unwrap().0, "h265:9:3");
+            }
+        }
+    }
+    #[test]
+    fn member_tiers_require_fresh_login_and_known_member_status() {
+        for (field, value) in [
+            ("login", None),
+            ("login", Some(json!(false))),
+            ("login", Some(Value::Null)),
+            ("login", Some(json!(1))),
+            ("login", Some(json!("true"))),
+            ("isvip", None),
+            ("isvip", Some(Value::Null)),
+            ("isvip", Some(json!(0))),
+            ("isvip", Some(json!("0"))),
+            ("isvip", Some(json!(2))),
+            ("isvip", Some(json!("2"))),
+            ("isvip", Some(json!(true))),
+            ("isvip", Some(json!(1.0))),
+            ("isvip", Some(json!("01"))),
+            ("isvip", Some(json!("+1"))),
+            ("isvip", Some(json!("unknown"))),
+            ("isvip", Some(json!({"type":1}))),
+        ] {
+            let mut data = synthetic_high_quality_data();
+            let user = data["user"].as_object_mut().unwrap();
+            if let Some(value) = value {
+                user.insert(field.to_owned(), value);
+            } else {
+                user.remove(field);
+            }
+            // A separate membership summary cannot substitute for streamList's
+            // own exact response facts, even with a complete free-video grant.
+            data["accountSummary"] = json!({"loggedIn":true,"isVip":true});
+            complete_entitlement(&data, "687100", "22025165").unwrap();
+            let (id, _, variants) = select(&data, None).unwrap();
+            assert_eq!(id, "h264:3:1", "invalid member field: {field}");
+            assert_eq!(variants[0]["available"], true);
+            for variant in &variants[1..] {
+                assert_eq!(variant["available"], false);
+                assert_eq!(
+                    select(&data, variant["id"].as_str()).unwrap_err().reason,
+                    Some("quality-unavailable")
+                );
+            }
+            data["stream"][0]["needPay"] = json!(1);
+            assert_eq!(
+                select(&data, None).unwrap_err().reason,
+                Some("quality-unavailable")
+            );
+        }
+        let mut missing_user = synthetic_high_quality_data();
+        missing_user.as_object_mut().unwrap().remove("user");
+        assert_eq!(select(&missing_user, None).unwrap().0, "h264:3:1");
+        assert!(select(&missing_user, Some("h265:9:3")).is_err());
+    }
+    #[test]
+    fn free_tiers_remain_available_without_member_or_login_fields() {
+        let mut data = synthetic_high_quality_data();
+        data["user"].as_object_mut().unwrap().remove("login");
+        data["user"].as_object_mut().unwrap().remove("isvip");
+        for key in ["stream", "stream_h265", "stream_av01"] {
+            for row in data[key].as_array_mut().unwrap() {
+                row["needPay"] = json!("0");
+            }
+        }
+        complete_entitlement(&data, "687100", "22025165").unwrap();
+        let (selected, _, variants) = select(&data, None).unwrap();
+        assert_eq!(selected, "h265:9:3");
+        assert!(variants.iter().all(|variant| variant["available"] == true));
+        assert_eq!(select(&data, Some("av01:9:4")).unwrap().0, "av01:9:4");
+    }
+    #[test]
     fn default_quality_keeps_first_available_codec_on_equal_height() {
         let mut data = synthetic_high_quality_data();
         let mut h264 = data["stream_h265"][1].clone();
@@ -573,7 +667,7 @@ mod tests {
         for requested in ["h265:9:3", "av01:9:4"] {
             assert_eq!(select(&data, Some(requested)).unwrap().0, requested);
         }
-        data["stream"][1]["needPay"] = json!(1);
+        data["stream"][1]["needPay"] = json!(2);
         assert_eq!(select(&data, None).unwrap().0, "h265:9:3");
         data["stream_h265"][1]["url"] = json!("");
         assert_eq!(select(&data, None).unwrap().0, "av01:9:4");
@@ -583,7 +677,13 @@ mod tests {
         for (key, value) in [
             ("url", Value::Null),
             ("url", json!("")),
-            ("needPay", json!(1)),
+            ("needPay", json!(2)),
+            ("needPay", json!(-1)),
+            ("needPay", json!(true)),
+            ("needPay", json!(1.0)),
+            ("needPay", json!("01")),
+            ("needPay", json!("+1")),
+            ("needPay", json!("unknown")),
             ("needPay", Value::Null),
             ("fileFormat", json!("DASH")),
             ("fileFormat", Value::Null),
@@ -600,6 +700,7 @@ mod tests {
                 Some("quality-unavailable")
             );
             data["stream"][0]["needPay"] = json!(1);
+            data["user"]["login"] = json!(false);
             assert_eq!(
                 select(&data, None).unwrap_err().reason,
                 Some("quality-unavailable")
@@ -627,14 +728,16 @@ mod tests {
                 Some(reason)
             );
         }
-        let mut preview = synthetic_high_quality_data();
-        preview["info"]["authInfo"] = json!({"pay_info":{"preview_playing":{"components":[{}]}}});
-        assert_eq!(
-            complete_entitlement(&preview, "687100", "22025165")
-                .unwrap_err()
-                .reason,
-            Some("entitlement-required")
-        );
+        for component in ["preview_starting", "preview_playing", "preview_end"] {
+            let mut preview = synthetic_high_quality_data();
+            preview["info"]["authInfo"] = json!({"pay_info":{component:{"components":[{}]}}});
+            assert_eq!(
+                complete_entitlement(&preview, "687100", "22025165")
+                    .unwrap_err()
+                    .reason,
+                Some("entitlement-required")
+            );
+        }
         let mut incomplete = synthetic_high_quality_data();
         incomplete["stream_h265"][1]["ftime"] = json!(300);
         assert_eq!(
@@ -647,6 +750,63 @@ mod tests {
         );
         // A failed higher row is not silently replaced by another codec/quality.
         assert_eq!(select(&incomplete, Some("av01:9:4")).unwrap().0, "av01:9:4");
+    }
+    #[test]
+    fn member_quality_cannot_replace_identity_or_complete_item_facts() {
+        for (path, value) in [
+            ("/info/collection_id", json!("1")),
+            ("/info/video_id", json!("1")),
+            ("/info/duration", Value::Null),
+            ("/info/duration", json!(0)),
+            ("/user/purview", Value::Null),
+        ] {
+            let mut data = synthetic_high_quality_data();
+            *data.pointer_mut(path).unwrap() = value;
+            assert!(complete_entitlement(&data, "687100", "22025165").is_err());
+        }
+        let mut data = synthetic_high_quality_data();
+        data["stream_h265"][1]
+            .as_object_mut()
+            .unwrap()
+            .remove("ftime");
+        assert_eq!(
+            select(&data, Some("h265:9:3")).unwrap_err().code,
+            "invalid-response"
+        );
+        // A partially supplied identity still cannot choose another file.
+        assert!(select(&data, Some("h265:9:2")).is_err());
+        data["stream_h265"][1]["ftime"] = json!(7562);
+        assert!(select(&data, Some("h265:9:3")).is_ok());
+        data["stream_h265"][1]["ftime"] = json!(7563);
+        assert_eq!(
+            select(&data, Some("h265:9:3")).unwrap_err().reason,
+            Some("incomplete-stream")
+        );
+    }
+    #[test]
+    fn playable_member_tier_keeps_independent_exact_download_authority() {
+        let data = synthetic_high_quality_data();
+        let info = fixture("info-free.json")["data"].clone();
+        assert_eq!(select(&data, Some("h265:9:3")).unwrap().0, "h265:9:3");
+        download_entitlement(&data, &info, "687100", "22025165").unwrap();
+        for flag in [None, Some(json!(0)), Some(json!(2)), Some(Value::Null)] {
+            let mut unavailable = info.clone();
+            let download = unavailable["config"]["download"].as_object_mut().unwrap();
+            if let Some(flag) = flag {
+                download.insert("downloadDisplay".to_owned(), flag);
+            } else {
+                download.remove("downloadDisplay");
+            }
+            assert_eq!(
+                download_entitlement(&data, &unavailable, "687100", "22025165")
+                    .unwrap_err()
+                    .reason,
+                Some("download-unavailable")
+            );
+        }
+        let mut wrong_video = info;
+        wrong_video["info"]["videoId"] = json!("1");
+        assert!(download_entitlement(&data, &wrong_video, "687100", "22025165").is_err());
     }
     #[test]
     fn real_free_response_grants_only_actual_available_quality() {
